@@ -6,7 +6,8 @@ const images: { [key: string]: ImageSourcePropType } = {
   Background: require('../Images/Background.png'),
   googleIcon: require('../Images/googleIcon.png'),
   appleIcon: require('../Images/appleIcon.png'),
-  continue: require('../Images/continue.png')
+  continue: require('../Images/continue.png'),
+  backIcon: require('../Images/backIcon.png')
 };
 
 export default images;

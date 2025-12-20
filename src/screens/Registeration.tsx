@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  ImageBackground,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -92,7 +93,11 @@ const Registeration = () => {
 
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <ImageBackground 
+    source={images.Background}
+    style={styles.imgbg}
+    >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAwareScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         enableOnAndroid={true}
@@ -331,6 +336,7 @@ const Registeration = () => {
         </View>
       </KeyboardAwareScrollView>
     </TouchableWithoutFeedback>
+    </ImageBackground>
   );
 };
 
@@ -510,6 +516,11 @@ phoneInput: {
     alignItems: 'center',
     zIndex: 9999,
   },
+    imgbg:{
+    alignSelf: 'center',
+    width: width * 0.99,
+    height: height * 0.9999,
+  }
 });
 
 export default Registeration;
