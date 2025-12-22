@@ -2963,6 +2963,7 @@ __metadata:
     react-native: "npm:^0.83.0"
     react-native-bouncy-checkbox: "npm:^4.1.2"
     react-native-country-codes-picker: "npm:^2.3.5"
+    react-native-image-crop-picker: "npm:^0.51.1"
     react-native-keyboard-aware-scroll-view: "npm:^0.9.5"
     react-native-safe-area-context: "npm:^5.6.2"
     react-native-screens: "npm:^4.19.0"
@@ -7798,6 +7799,16 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/e03947812eaa39cf2f4f0b938611936641aa5274ffe66c2e7661442e0b8bbc58485dfed7417bbbb9df9232f72365058cdd336d87b02149988b8609840d65abb7
+  languageName: node
+  linkType: hard
+
+"react-native-image-crop-picker@npm:^0.51.1":
+  version: 0.51.1
+  resolution: "react-native-image-crop-picker@npm:0.51.1"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/3abe4051446b4391364562fafb93c1852633822276de4a2840ffe52bde0745d4a3bc534b5fb4208bb2f727542bd1b2dcefcafbf9f55c802b95f88de2fc4344fb
   languageName: node
   linkType: hard
 

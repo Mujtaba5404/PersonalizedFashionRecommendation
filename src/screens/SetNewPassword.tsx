@@ -91,8 +91,7 @@ const SetNewPassword = () => {
             backgroundColor={colors.lightbrown}
             borderRadius={20}
             onPress={() =>
-                navigation.navigate('OtpVerification', { from: 'forget' })
-              }
+                navigation.navigate('OtpVerification', { from: 'ForgotPassword' })}
           />
         </View>
       </View>

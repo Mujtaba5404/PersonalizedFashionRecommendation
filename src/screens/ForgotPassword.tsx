@@ -85,7 +85,7 @@ const ForgotPassword = () => {
             btnWidth={width * 0.85}
             backgroundColor={colors.lightbrown}
             borderRadius={20}
-            onPress={() => navigation.navigate('SetNewPassword')}
+            onPress={() => navigation.navigate('SetNewPassword', { from: 'ForgotPassword' })}
           />
 
         </View>

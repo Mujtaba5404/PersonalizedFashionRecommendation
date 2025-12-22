@@ -241,7 +241,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({
             </View>
           )}
           {notification && (
-            <View style={[styles.headerBell, { right: -width * 0.02 }]}>
+            <View style={[styles.headerBell, { right: -width * 0.1}]}>
               <TouchableOpacity
                 onPress={() => navigation.navigate('NotificationsScreen')}
               >
@@ -343,13 +343,13 @@ const TopHeader: React.FC<TopHeaderProps> = ({
                     }}
                   >
                     <Text style={styles.headerWelcome}>Welcome</Text>
-                    <Text style={styles.headerJaydon}>
-                    </Text>
+                    <Text style={styles.headerJaydon}>Jaydon</Text>
                   </View>
                 </TouchableOpacity>
               </View>
             </View>
           )}
+
           {isCart && (
             <TouchableOpacity activeOpacity={0.7} style={styles.headerBell} onPress={() => navigation.navigate("Cart")}>
               <Image source={images.cartIcon} style={styles.cartIconImg} />
@@ -363,8 +363,8 @@ const TopHeader: React.FC<TopHeaderProps> = ({
 
 const styles = StyleSheet.create({
   isChatImg: {
-    width: width * 0.1,
-    height: width * 0.1,
+    width: width * 0.08,
+    height: width * 0.08,
     resizeMode: 'cover',
     borderRadius: width * 0.1
   },
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
   },
   headerJaydon: {
     fontFamily: fontFamily.UrbanistBold,
-    fontSize: fontSizes.sm,
+    fontSize: fontSizes.xsm,
     color: colors.black,
   },
   cartIconImg: {

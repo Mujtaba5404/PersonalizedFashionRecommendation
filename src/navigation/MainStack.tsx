@@ -9,6 +9,9 @@ import SignInEmail from '../screens/SignInEmail';
 import Registeration from '../screens/Registeration';
 import ForgotPassword from '../screens/ForgotPassword';
 import SetNewPassword from '../screens/SetNewPassword';
+import OtpVerification from '../screens/OtpVerification';
+import CreateProfile from '../screens/CreateProfile';
+import Home from '../screens/Home';
 
 export type MainStackParamList = {
   Onboarding: undefined;
@@ -17,6 +20,9 @@ export type MainStackParamList = {
   Registeration: undefined;
   ForgotPassword: undefined;
   SetNewPassword: undefined;
+  OtpVerification: undefined;
+  CreateProfile: undefined;
+  Home: undefined;
 };
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -30,6 +36,9 @@ const MainStack = () => {
       <Stack.Screen name="Registeration" component={Registeration} />
       <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
       <Stack.Screen name="SetNewPassword" component={SetNewPassword} />
+      <Stack.Screen name="OtpVerification" component={OtpVerification} />
+      <Stack.Screen name="CreateProfile" component={CreateProfile} />
+      <Stack.Screen name="Home" component={Home} />
     </Stack.Navigator>
   );
 };
