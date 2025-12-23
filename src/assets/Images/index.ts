@@ -28,7 +28,9 @@ const images: { [key: string]: ImageSourcePropType } = {
   Favorite: require('../Images/Favorite.png'),
   profileIcon: require('../Images/profileIcon.png'),
   profileImage: require('../Images/profileImage.png'),
-  homeslider: require('../Images/homeslider.png')
+  homeslider: require('../Images/homeslider.png'),
+  Bin: require('../Images/Bin.png'),
+  pakistan: require('../Images/pakistan.png')
 };
 
 export default images;

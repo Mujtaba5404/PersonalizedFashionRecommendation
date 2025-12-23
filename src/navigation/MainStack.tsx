@@ -20,6 +20,7 @@ import Profile from '../screens/Profile';
 import ChangePassword from '../screens/ChangePassword';
 import TermsConditions from '../screens/TermsAndCondition';
 import PrivacyPolicy from '../screens/PrivacyPolicy';
+import FAQS from '../screens/Faqs';
 
 export type MainStackParamList = {
   Onboarding: undefined;
@@ -38,6 +39,7 @@ export type MainStackParamList = {
   ChangePassword: undefined;
   TermsConditions:undefined;
   PrivacyPolicy: undefined;
+  FAQS: undefined;
 };
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -61,6 +63,7 @@ const MainStack = () => {
       <Stack.Screen name="ChangePassword" component={ChangePassword} />
       <Stack.Screen name="TermsConditions" component={TermsConditions} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
+      <Stack.Screen name="FAQS" component={FAQS} />
     </Stack.Navigator>
   );
 };

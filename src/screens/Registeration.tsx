@@ -27,18 +27,18 @@ import { fontSizes } from '../utilities/fontsizes';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 
-const countryData = [
-  { code: '+1', flag: '🇺🇸', name: 'United States' },
-  { code: '+44', flag: '🇬🇧', name: 'United Kingdom' },
-  { code: '+91', flag: '🇮🇳', name: 'India' },
-  { code: '+61', flag: '🇦🇺', name: 'Australia' },
-  { code: '+33', flag: '🇫🇷', name: 'France' },
-  { code: '+49', flag: '🇩🇪', name: 'Germany' },
-  { code: '+81', flag: '🇯🇵', name: 'Japan' },
-  { code: '+86', flag: '🇨🇳', name: 'China' },
-  { code: '+971', flag: '🇦🇪', name: 'UAE' },
-  { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
-];
+// const countryData = [
+//   { code: '+1', flag: '🇺🇸', name: 'United States' },
+//   { code: '+44', flag: '🇬🇧', name: 'United Kingdom' },
+//   { code: '+91', flag: '🇮🇳', name: 'India' },
+//   { code: '+61', flag: '🇦🇺', name: 'Australia' },
+//   { code: '+33', flag: '🇫🇷', name: 'France' },
+//   { code: '+49', flag: '🇩🇪', name: 'Germany' },
+//   { code: '+81', flag: '🇯🇵', name: 'Japan' },
+//   { code: '+86', flag: '🇨🇳', name: 'China' },
+//   { code: '+971', flag: '🇦🇪', name: 'UAE' },
+//   { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+// ];
 
 const Registeration = () => {
   const navigation = useNavigation<NavigationProp<any>>();
@@ -53,26 +53,26 @@ const Registeration = () => {
   const [confirmPassword, setconfirmPassword] = useState('');
   const [agree, setAgree] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState(countryData[0]);
+  // const [selectedCountry, setSelectedCountry] = useState(countryData[0]);
 
 
-  const handleCountrySelect = country => {
-    setSelectedCountry(country);
-    setCountryCode(country.code); // <-- FIXED
-    setShowCountryPicker(false);
-  };
+  // const handleCountrySelect = country => {
+  //   setSelectedCountry(country);
+  //   setCountryCode(country.code); // <-- FIXED
+  //   setShowCountryPicker(false);
+  // };
 
 
-  const renderCountryItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.countryItem}
-      onPress={() => handleCountrySelect(item)}
-    >
-      <Text style={styles.countryFlag}>{item.flag}</Text>
-      <Text style={styles.countryName}>{item.name}</Text>
-      <Text style={styles.countryCode}>{item.code}</Text>
-    </TouchableOpacity>
-  );
+  // const renderCountryItem = ({ item }) => (
+  //   <TouchableOpacity
+  //     style={styles.countryItem}
+  //     onPress={() => handleCountrySelect(item)}
+  //   >
+  //     <Text style={styles.countryFlag}>{item.flag}</Text>
+  //     <Text style={styles.countryName}>{item.name}</Text>
+  //     <Text style={styles.countryCode}>{item.code}</Text>
+  //   </TouchableOpacity>
+  // );
 
   const isConfirmPasswordValid = confirmPassword === password;
   const isNameValid = name.trim().length >= 4;
@@ -165,8 +165,9 @@ const Registeration = () => {
                 onPress={() => setShowCountryPicker(true)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.flagEmoji}>{selectedCountry.flag}</Text>
-                <Image source={images.arrowdown} />
+                {/* <Text style={styles.flagEmoji}>{selectedCountry.flag}</Text> */}
+                <Image source={images.pakistan} style={{left: width * 0.03}}/>
+                {/* <Image source={images.arrowdown} /> */}
               </TouchableOpacity>
               <Text
                 style={[
@@ -177,7 +178,7 @@ const Registeration = () => {
                   },
                 ]}
               >
-                {selectedCountry.code}
+               
               </Text>
               <Image source={images.line} style={styles.lineImg} />
               <TextInput
@@ -227,7 +228,7 @@ const Registeration = () => {
           </View>
 
           {/* Country Picker Modal */}
-          <Modal
+          {/* <Modal
             visible={showCountryPicker}
             animationType="slide"
             transparent={true}
@@ -252,7 +253,7 @@ const Registeration = () => {
                 />
               </View>
             </View>
-          </Modal>
+          </Modal> */}
 
           <View style={styles.checkBoxMain}>
             <View style={styles.checkboxContainer}>

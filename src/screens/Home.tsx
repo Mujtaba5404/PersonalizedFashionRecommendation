@@ -1,71 +1,55 @@
-
 import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
+import {
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ScrollView,
+} from 'react-native';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
-import CustomButton from '../components/CustomButton';
 import TopHeader from '../components/Topheader';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+
+const ITEM_WIDTH = width * 0.55;
 
 const Home = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
-  // Slider images data 
   const sliderImages = [
-    { 
-      id: '1', 
-      image: images.slider3,
-      title: 'Prada Glass',
-      subtitle: 'Summer collection 2024'
-    },
-    { 
-      id: '2', 
-      image: images.slider1, // دوسری لڑکی کی تصویر
-      title: 'Satchel Bag',
-      subtitle: 'New Arrivals'
-    },
-    { 
-      id: '3', 
-      image: images.slider2, // تیسری لڑکی کی تصویر
-      title: 'Designer Wear',
-      subtitle: 'Luxury Collection'
-    },
+    { id: '1', image: images.slider3 },
+    { id: '2', image: images.slider1 },
+    { id: '3', image: images.slider2 },
   ];
 
-  // Products data
   const products = [
-    { id: '1', name: 'Prada Glass', price: '$299', image: images.product1, isFavorite: false },
-    { id: '2', name: 'Satchel Bag', price: '$199', image: images.product2, isFavorite: true },
+    { id: '1', name: 'Womwn Joot Coats', price: '$299', image: images.Onboarding, isFavorite: false },
+    { id: '2', name: 'Satchel Dress', price: '$199', image: images.product2, isFavorite: true },
     { id: '3', name: 'Summer Dress', price: '$159', image: images.product3, isFavorite: false },
-    { id: '4', name: 'Sunglasses', price: '$129', image: images.product4, isFavorite: true },
+    { id: '4', name: 'Party Dresses', price: '$129', image: images.product4, isFavorite: true },
   ];
 
-  // Handle scroll for dots
-  const handleScroll = (event: any) => {
-    const scrollPosition = event.nativeEvent.contentOffset.x;
-    const index = Math.round(scrollPosition / width);
-    setCurrentIndex(index);
-  };
-
-  const renderSliderItem = ({ item }: { item: any }) => (
+  const renderSliderItem = ({ item }) => (
     <View style={styles.sliderItem}>
       <Image source={item.image} style={styles.sliderImage} />
     </View>
   );
 
-  const renderProductItem = ({ item }: { item: any }) => (
+  const renderProductItem = ({ item }) => (
     <TouchableOpacity style={styles.productCard}>
       <View style={styles.productImageContainer}>
         <Image source={item.image} style={styles.productImage} />
         <TouchableOpacity style={styles.heartButton}>
-          <Image 
-            source={item.isFavorite ? images.heartFilled : images.heartOutline} 
-            style={styles.heartIcon} 
+          <Image
+            source={item.isFavorite ? images.heartFilled : images.heartOutline}
+            style={styles.heartIcon}
           />
         </TouchableOpacity>
       </View>
@@ -76,45 +60,58 @@ const Home = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.lightGray }}>
-      <TopHeader isMenu={true} notification={true} isProfile={true} />
-      
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
+      <TopHeader isMenu notification isProfile />
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Welcome */}
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeText}>Hello, Jaydon</Text>
           <Text style={styles.summaryText}>Today's Summary</Text>
         </View>
 
-        
+        {/* SLIDER */}
         <View style={styles.sliderContainer}>
-          <Image source={images.homeslider} style={styles.image}>
-          </Image>
+         <FlatList
+            ref={flatListRef}
+            data={sliderImages}
+            renderItem={renderSliderItem}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={ITEM_WIDTH}
+            decelerationRate="fast"
+            contentContainerStyle={{
+              paddingHorizontal: (width - ITEM_WIDTH) / 2,
+            }}
+            initialScrollIndex={1}  // ⭐ center image
+            onMomentumScrollEnd={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / ITEM_WIDTH);
+              setCurrentIndex(index);
+            }}
+            onScrollToIndexFailed={() => {
+              flatListRef.current?.scrollToOffset({
+                offset: ITEM_WIDTH * 1,
+                animated: false,
+              });
+            }}
+          />
 
+          {/* DOTS */}
           <View style={styles.dotsContainer}>
             {sliderImages.map((_, index) => (
-              <TouchableOpacity
+              <View
                 key={index}
-                onPress={() => {
-                  flatListRef.current?.scrollToIndex({ index, animated: true });
-                  setCurrentIndex(index);
-                }}
-              >
-                <View 
-                  style={[
-                    styles.dot, 
-                    index === currentIndex && styles.activeDot
-                  ]} 
-                />
-              </TouchableOpacity>
+                style={[
+                  styles.dot,
+                  index === currentIndex && styles.activeDot,
+                ]}
+              />
             ))}
           </View>
         </View>
 
-        {/* Products Grid Section */}
+        {/* PRODUCTS */}
         <View style={styles.productsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Suggested Products</Text>
-          </View>
-          
           <FlatList
             data={products}
             renderItem={renderProductItem}
@@ -122,10 +119,8 @@ const Home = () => {
             numColumns={2}
             scrollEnabled={false}
             columnWrapperStyle={styles.productsRow}
-            contentContainerStyle={styles.productsGrid}
           />
         </View>
-
       </ScrollView>
     </View>
   );
@@ -154,19 +149,19 @@ const styles = StyleSheet.create({
 
   sliderContainer: {
     height: height * 0.35,
-    marginBottom: height * 0.02,
+    marginBottom: height * 0.06,
   },
   sliderItem: {
-    width: width,
+    width: ITEM_WIDTH,
     height: '100%',
-    position: 'relative',
-    
-  },
+    justifyContent: 'center',
+    alignItems: 'center',
+},
   sliderImage: {
-    width: '100%',
-    height: '100%',
+    width: '85%',        // ⭐ image choti
+    height: '85%',       // ⭐ image choti
     resizeMode: 'contain',
-  },
+},
   sliderTextOverlay: {
     position: 'absolute',
     bottom: height * 0.05,
@@ -208,7 +203,7 @@ const styles = StyleSheet.create({
   // Products Section
   productsSection: {
     paddingHorizontal: width * 0.05,
-    marginBottom: height * 0.03,
+    marginBottom: height * 0.02,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -338,5 +333,4 @@ const styles = StyleSheet.create({
     alignSelf: 'center'
   }
 });
-
 export default Home;

@@ -137,7 +137,7 @@ const Profile = () => {
         <TouchableOpacity
           style={styles.optionRow}
           activeOpacity={0.7}
-          onPress={() => navigation.navigate('FAQs')}
+          onPress={() => navigation.navigate('FAQS')}
         >
           <Text style={styles.optionText}>FAQS</Text>
         </TouchableOpacity>
@@ -208,7 +208,7 @@ const Profile = () => {
                 style={styles.deleteButtonModal}
                 onPress={() => {
                   setModalVisible(false);
-                  deleteAcc();   // <-- NOW CALL API CORRECTLY
+                  navigation.navigate('Register')   // <-- NOW CALL API CORRECTLY
                 }}
               >
                 <Text style={styles.deleteTextModal}>Delete Account</Text>
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   },
   deleteButtonModal: {
     flex: 1,
-    backgroundColor: colors.marhoon,
+    backgroundColor: colors.lightbrown,
     paddingVertical: 12,
     borderRadius: 25,
     marginLeft: 10,
