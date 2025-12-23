@@ -22,7 +22,13 @@ const images: { [key: string]: ImageSourcePropType } = {
   product3: require('../Images/product3.png'),
   product4: require('../Images/product4.png'),
   product5: require('../Images/product5.png'),
-  product6: require('../Images/product6.png')
+  product6: require('../Images/product6.png'),
+  homeIcon: require('../Images/homeIcon.png'),
+  bottomTabSecIcon: require('../Images/bottomTabSecIcon.png'),
+  Favorite: require('../Images/Favorite.png'),
+  profileIcon: require('../Images/profileIcon.png'),
+  profileImage: require('../Images/profileImage.png'),
+  homeslider: require('../Images/homeslider.png')
 };
 
 export default images;

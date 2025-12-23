@@ -43,8 +43,6 @@ const Home = () => {
     { id: '2', name: 'Satchel Bag', price: '$199', image: images.product2, isFavorite: true },
     { id: '3', name: 'Summer Dress', price: '$159', image: images.product3, isFavorite: false },
     { id: '4', name: 'Sunglasses', price: '$129', image: images.product4, isFavorite: true },
-    { id: '5', name: 'Handbag', price: '$249', image: images.product5, isFavorite: false },
-    { id: '6', name: 'Watch', price: '$399', image: images.product6, isFavorite: true },
   ];
 
   // Handle scroll for dots
@@ -88,20 +86,8 @@ const Home = () => {
 
         
         <View style={styles.sliderContainer}>
-          <FlatList
-            ref={flatListRef}
-            data={sliderImages}
-            renderItem={renderSliderItem}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            pagingEnabled
-            snapToInterval={width}
-            decelerationRate="fast"
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-          />
-          
+          <Image source={images.homeslider} style={styles.image}>
+          </Image>
 
           <View style={styles.dotsContainer}>
             {sliderImages.map((_, index) => (
@@ -126,10 +112,7 @@ const Home = () => {
         {/* Products Grid Section */}
         <View style={styles.productsSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Featured Products</Text>
-            {/* <TouchableOpacity>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity> */}
+            <Text style={styles.sectionTitle}>Suggested Products</Text>
           </View>
           
           <FlatList
@@ -351,6 +334,9 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.white,
   },
+  image:{
+    alignSelf: 'center'
+  }
 });
 
 export default Home;

@@ -12,6 +12,14 @@ import SetNewPassword from '../screens/SetNewPassword';
 import OtpVerification from '../screens/OtpVerification';
 import CreateProfile from '../screens/CreateProfile';
 import Home from '../screens/Home';
+import Brand from '../screens/BrandStore';
+import Favorite from '../screens/Favourite';
+import BottomTabs from './BottomTabs';
+import EditProfile from '../screens/EditProfile';
+import Profile from '../screens/Profile';
+import ChangePassword from '../screens/ChangePassword';
+import TermsConditions from '../screens/TermsAndCondition';
+import PrivacyPolicy from '../screens/PrivacyPolicy';
 
 export type MainStackParamList = {
   Onboarding: undefined;
@@ -23,6 +31,13 @@ export type MainStackParamList = {
   OtpVerification: undefined;
   CreateProfile: undefined;
   Home: undefined;
+  Brand: undefined;
+  Favorite: undefined;
+  Profile: undefined;
+  EditProfile: undefined;
+  ChangePassword: undefined;
+  TermsConditions:undefined;
+  PrivacyPolicy: undefined;
 };
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -38,7 +53,14 @@ const MainStack = () => {
       <Stack.Screen name="SetNewPassword" component={SetNewPassword} />
       <Stack.Screen name="OtpVerification" component={OtpVerification} />
       <Stack.Screen name="CreateProfile" component={CreateProfile} />
-      <Stack.Screen name="Home" component={Home} />
+      <Stack.Screen name="Home" component={BottomTabs} />
+      <Stack.Screen name="Brand" component={Brand} />
+      <Stack.Screen name="Favorite" component={Favorite} />
+      <Stack.Screen name="Profile" component={Profile} />
+      <Stack.Screen name="EditProfile" component={EditProfile} />
+      <Stack.Screen name="ChangePassword" component={ChangePassword} />
+      <Stack.Screen name="TermsConditions" component={TermsConditions} />
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
     </Stack.Navigator>
   );
 };

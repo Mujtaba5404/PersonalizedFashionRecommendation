@@ -9,7 +9,7 @@ import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
 
-type Props = NativeStackScreenProps<MainStackParamList, 'Register'>;
+// type Props = NativeStackScreenProps<MainStackParamList, 'Register'>;
 
 const Onboarding = () => {
   const navigation = useNavigation<NavigationProp<any>>();

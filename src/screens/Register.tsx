@@ -38,7 +38,7 @@ const Register = () => {
         style={{
           flexDirection: 'row',
           alignSelf: 'center',
-          top: height * 0.62,
+          top: height * 0.6,
         }}
       >
         <Text style={styles.member}>Already a member?</Text>
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     top: height * 0.3,
   },
   btnMain: {
-    top: height * 0.57,
+    top: height * 0.55,
     alignItems: 'center',
   },
   member: {
