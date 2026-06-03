@@ -4,30 +4,23 @@ import {
   Image,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   ScrollView,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import TopHeader from '../components/Topheader';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
-import { useState, useRef, useEffect } from 'react';
-
-const ITEM_WIDTH = width * 0.55;
+import { useState } from 'react';
 
 const Home = () => {
   const navigation = useNavigation<NavigationProp<any>>();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
-
-  const sliderImages = [
-    { id: '1', image: images.slider3 },
-    { id: '2', image: images.slider1 },
-    { id: '3', image: images.slider2 },
-  ];
+  const [searchQuery, setSearchQuery] = useState('');
 
   const products = [
     { id: '1', name: 'Womwn Joot Coats', price: '$299', image: images.Onboarding, isFavorite: false },
@@ -35,12 +28,6 @@ const Home = () => {
     { id: '3', name: 'Summer Dress', price: '$159', image: images.product3, isFavorite: false },
     { id: '4', name: 'Party Dresses', price: '$129', image: images.product4, isFavorite: true },
   ];
-
-  const renderSliderItem = ({ item }) => (
-    <View style={styles.sliderItem}>
-      <Image source={item.image} style={styles.sliderImage} />
-    </View>
-  );
 
   const renderProductItem = ({ item }) => (
     <TouchableOpacity style={styles.productCard}>
@@ -69,45 +56,16 @@ const Home = () => {
           <Text style={styles.summaryText}>Today's Summary</Text>
         </View>
 
-        {/* SLIDER */}
-        <View style={styles.sliderContainer}>
-         <FlatList
-            ref={flatListRef}
-            data={sliderImages}
-            renderItem={renderSliderItem}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={ITEM_WIDTH}
-            decelerationRate="fast"
-            contentContainerStyle={{
-              paddingHorizontal: (width - ITEM_WIDTH) / 2,
-            }}
-            initialScrollIndex={1}  // ⭐ center image
-            onMomentumScrollEnd={(e) => {
-              const index = Math.round(e.nativeEvent.contentOffset.x / ITEM_WIDTH);
-              setCurrentIndex(index);
-            }}
-            onScrollToIndexFailed={() => {
-              flatListRef.current?.scrollToOffset({
-                offset: ITEM_WIDTH * 1,
-                animated: false,
-              });
-            }}
+        {/* SEARCH BAR */}
+        <View style={styles.searchContainer}>
+          <Icon name="search-outline" size={20} color="#9E9E9E" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search"
+            placeholderTextColor="#9E9E9E"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
-
-          {/* DOTS */}
-          <View style={styles.dotsContainer}>
-            {sliderImages.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  index === currentIndex && styles.activeDot,
-                ]}
-              />
-            ))}
-          </View>
         </View>
 
         {/* PRODUCTS */}
@@ -147,58 +105,34 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
 
-  sliderContainer: {
-    height: height * 0.35,
-    marginBottom: height * 0.06,
-  },
-  sliderItem: {
-    width: ITEM_WIDTH,
-    height: '100%',
-    justifyContent: 'center',
+  searchContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-},
-  sliderImage: {
-    width: '85%',        // ⭐ image choti
-    height: '85%',       // ⭐ image choti
-    resizeMode: 'contain',
-},
-  sliderTextOverlay: {
-    position: 'absolute',
-    bottom: height * 0.05,
-    left: width * 0.05,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: colors.white,
+    marginHorizontal: width * 0.05,
+    marginTop: height * 0.015,
+    marginBottom: height * 0.03,
+    paddingHorizontal: width * 0.04,
+    height: height * 0.06,
+    borderRadius: 12,
+    shadowColor: colors.black,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  sliderTitle: {
-    fontFamily: fontFamily.UrbanistBold,
-    fontSize: fontSizes.md,
-    color: colors.white,
+  searchIcon: {
+    marginRight: width * 0.025,
   },
-  sliderSubtitle: {
+  searchInput: {
+    flex: 1,
     fontFamily: fontFamily.UrbanistMedium,
     fontSize: fontSizes.sm,
-    color: colors.white,
-    opacity: 0.9,
-  },
-  dotsContainer: {
-    position: 'absolute',
-    bottom: height * 0.02,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    marginHorizontal: 4,
-  },
-  activeDot: {
-    backgroundColor: colors.white,
-    width: 20,
+    color: colors.black,
+    padding: 0,
   },
   // Products Section
   productsSection: {

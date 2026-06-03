@@ -1,7 +1,7 @@
 import { NavigationProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { ActivityIndicator, Image, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ImageBackground, PermissionsAndroid, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
@@ -30,178 +30,174 @@ const CreateProfile = () => {
   const [shoulder, setShoulder] = useState('');
   const [chest, setChest] = useState('');
   const [hiips, setHips] = useState('');
-  const [relationshipStatus, setRelationshipStatus] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [category, setCategory] = useState('');
+  const [subCategory, setSubCategory] = useState('');
 
-  const countryOption = [
-    { name: 'Country', id: '' },
-    { name: 'United State', id: 'united state' },
-    { name: 'United Kingdom', id: 'united kingdom' },
-    { name: 'Other', id: 'other' },
+  const categoryOptions = [
+    { name: 'Select category', id: '' },
+    { name: 'Casual', id: 'casual' },
+    { name: 'Seasonal', id: 'seasonal' },
+    { name: 'Shadi Wear', id: 'shadi-wear' },
   ];
-  const chestWidth = [
-    { name: 'Chest', id: '' },
-    { name: 'XS → 30–32 in', id: 'XS → 30–32 in' },
-    { name: 'S → 33–35 in', id: 'S → 33–35 in' },
-    { name: 'M → 36–38 in', id: 'M → 36–38 in' },
-    { name: 'L → 39–41 in', id: 'L → 39–41 in' },
-  ];
-  const shoulderWidth  = [
-    { name: 'Shoulder ', id: '' },
-    { name: '20', id: '20' },
-    { name: '22', id: '22' },
-    { name: '24', id: '24' },
-  ];
-  const waist = [
-    { name: 'Waist', id: '' },
-    { name: 'XS → 24–25 inch', id: 'XS → 24–25 inch' },
-    { name: 'S → 26–27 inch', id: 'S → 26–27 inch' },
-    { name: 'M → 28–30 inch', id: 'M → 28–30 inch' },
-    { name: 'L → 31–33 inch', id: 'L → 31–33 inch' },
-  ];
-    const hips = [
-    { name: 'Hips', id: '' },
-    { name: 'XS → 32–34 in', id: 'XS → 32–34 in' },
-    { name: 'S → 35–37 in', id: 'S → 35–37 in' },
-    { name: 'M → 38–40 in', id: 'M → 38–40 in' },
-    { name: 'L → 41–43 in', id: 'L → 41–43 in' },
-  ];
-  const relationshipOptions = [
-    { name: 'Relationship Status', id: '' },
-    { name: 'Single', id: 'single' },
-    { name: 'Married', id: 'married' },
-  ];
+
+  // Sub-categories keyed by the parent category id.
+  const subCategoryMap: Record<string, { name: string; id: string }[]> = {
+    casual: [
+      { name: 'Ready to wear', id: 'ready-to-wear' },
+      { name: 'Unstitched', id: 'unstitched' },
+    ],
+    seasonal: [
+      { name: 'Summer', id: 'summer' },
+      { name: 'Winters', id: 'winters' },
+    ],
+    'shadi-wear': [
+      { name: 'Barat', id: 'barat' },
+      { name: 'Valima', id: 'valima' },
+      { name: 'Mehndi', id: 'mehndi' },
+    ],
+  };
+
+  // Options for the second dropdown, derived from the selected category.
+  const subCategoryOptions = category ? subCategoryMap[category] ?? [] : [];
+
+  const handleCategoryChange = (_name: string, id?: string | null) => {
+    setCategory(id ?? '');
+    // Reset the sub-category whenever the main category changes.
+    setSubCategory('');
+  };
+
+  const handleSubCategoryChange = (_name: string, id?: string | null) => {
+    setSubCategory(id ?? '');
+  };
 
   const toggleModal = () => {
     setModalOpen(!modalOpen);
   };
 
-  const handleCreateProfile = () => {
-  setLoading(true);
+  const requestCameraPermission = async () => {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Camera Permission',
+          message: 'This app needs access to your camera to take a profile photo.',
+          buttonPositive: 'OK',
+          buttonNegative: 'Cancel',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch {
+      return false;
+    }
+  };
 
-  setTimeout(() => {
-    setLoading(false);
-    setIsModalVisible(true);
-  }, 500);
-};
+  const openGallery = () => {
+    // Close the modal first so the native picker isn't blocked by the JS Modal.
+    setModalOpen(false);
+    setTimeout(() => {
+      ImagePicker.openPicker({
+        width: 400,
+        height: 400,
+        cropping: true,
+        mediaType: 'photo',
+      })
+        .then(image => {
+          setProfileImage(image.path);
+        })
+        .catch(() => { });
+    }, 400);
+  };
+
+  const openCamera = () => {
+    // Close the modal first so the native camera isn't blocked by the JS Modal.
+    setModalOpen(false);
+    setTimeout(async () => {
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) {
+        return;
+      }
+      ImagePicker.openCamera({
+        width: 400,
+        height: 400,
+        cropping: true,
+        mediaType: 'photo',
+      })
+        .then(image => {
+          setProfileImage(image.path);
+        })
+        .catch(() => { });
+    }, 400);
+  };
+
+  const handleCreateProfile = () => {
+    const categoryName =
+      categoryOptions.find(c => c.id === category)?.name ?? '';
+    const subCategoryName =
+      subCategoryOptions.find(s => s.id === subCategory)?.name ?? '';
+
+    navigation.navigate('CategoryProducts', {
+      category,
+      categoryName,
+      subCategory,
+      subCategoryName,
+    });
+  };
 
   return (
     <ImageBackground
-    source={images.Background}
-    style={styles.imgbg}
+      source={images.Background}
+      style={styles.imgbg}
     >
-      <TopHeader text="Profile Setup" isBack={true} />
+      <TopHeader text="User Profile" isBack={true} />
       <View style={styles.container}>
         <View style={styles.imgMain}>
           <TouchableOpacity onPress={toggleModal} activeOpacity={0.7}>
-            <Image 
-              source={images.profile}
-              style={styles.profileImg} 
+            <Image
+              source={profileImage ? { uri: profileImage } : images.camera}
+              style={styles.profileImg}
             />
+            {/* <View style={styles.uploadBadge}>
+              <Text style={styles.uploadBadgeText}>Upload</Text>
+            </View> */}
           </TouchableOpacity>
           <Text style={styles.profText}>Harden Scoot</Text>
         </View>
 
         <View style={styles.inputMain}>
-          <View style={styles.row}>
-            <CustomTextInput
-              placeholder="Age"
-              placeholderTextColor={colors.black}
-              inputHeight={height * 0.06}
-              inputWidth={width * 0.41}
-              borderRadius={20}
-              value={country}
-              onChangeText={setCountry}
-              keyboardType="default"
-              fontFamily={fontFamily.UrbanistMedium}
-              fontSize={fontSizes.sm2}
-            />
-            <CustomTextInput
-              placeholder="Height"
-              placeholderTextColor={colors.black}
-              inputHeight={height * 0.06}
-              inputWidth={width * 0.41}
-              borderRadius={20}
-              value={city}
-              onChangeText={setCity}
-              keyboardType="default"
-              fontFamily={fontFamily.UrbanistMedium}
-              fontSize={fontSizes.sm2}
-            />
-          </View>
 
+          {/* Main category */}
           <CustomSelect
             inputWidth={width * 0.85}
             inputHeight={height * 0.06}
-            selectElements={relationshipOptions}
-            borderColor={colors.lightGray}
+            selectElements={categoryOptions}
+            borderColor={colors.white}
+            borderWidth={0}
             inputColor={colors.white}
             borderRadius={20}
-            onChangeText={setRelationshipStatus}
-            setSelectedElement={setRelationshipStatus}
-            defaultValue=""
-            rightIcon={images.arrowdown}
+            placeholder="Select category"
+            onChangeText={handleCategoryChange}
           />
 
-        <View style={styles.row}>
+          {/* Sub-category — dynamically reflects the chosen category */}
+          {subCategoryOptions.length > 0 && (
             <CustomSelect
+              key={category}
               inputWidth={width * 0.85}
               inputHeight={height * 0.06}
-              selectElements={waist}
-              borderColor={colors.lightGray}
+              selectElements={subCategoryOptions}
+              borderColor={colors.white}
+              borderWidth={0}
               inputColor={colors.white}
               borderRadius={20}
-              onChangeText={setWaist}
-              setSelectedElement={setWaist}
-              defaultValue=""
-              rightIcon={images.arrowdown}
+              placeholder="Select sub-category"
+              preselectedValue={subCategory}
+              onChangeText={handleSubCategoryChange}
             />
-        </View>
-
-         <View style={styles.row}>
-            <CustomSelect
-              inputWidth={width * 0.85}
-              inputHeight={height * 0.06}
-              selectElements={shoulderWidth}
-              borderColor={colors.lightGray}
-              inputColor={colors.white}
-              borderRadius={20}
-              onChangeText={setShoulder}
-              setSelectedElement={setShoulder}
-              defaultValue=""
-              rightIcon={images.arrowdown}
-            />
-        </View>
-
-        <View style={styles.row}>
-            <CustomSelect
-              inputWidth={width * 0.85}
-              inputHeight={height * 0.06}
-              selectElements={chestWidth}
-              borderColor={colors.lightGray}
-              inputColor={colors.white}
-              borderRadius={20}
-              onChangeText={setChest}
-              setSelectedElement={setChest}
-              defaultValue=""
-              rightIcon={images.arrowdown}
-            />
-        </View>
-
-        <View style={styles.row}>
-            <CustomSelect
-              inputWidth={width * 0.85}
-              inputHeight={height * 0.06}
-              selectElements={hips}
-              borderColor={colors.lightGray}
-              inputColor={colors.white}
-              borderRadius={20}
-              onChangeText={setHips}
-              setSelectedElement={setHips}
-              defaultValue=""
-              rightIcon={images.arrowdown}
-            />
-        </View>
+          )}
         </View>
 
         <View style={styles.btnMain}>
@@ -216,6 +212,13 @@ const CreateProfile = () => {
           />
         </View>
       </View>
+
+      <CustomProfileImgModal
+        modalOpen={modalOpen}
+        toggleModal={toggleModal}
+        gallery={openGallery}
+        camera={openCamera}
+      />
 
       {/* ✅ Success Modal - placed outside container */}
       {isModalVisible && (
@@ -242,8 +245,8 @@ const CreateProfile = () => {
                 btnWidth={width * 0.65}
                 borderRadius={30}
                 onPress={() => {
-                    setIsModalVisible(false); // modal close
-                    navigation.navigate('Home'); // navigate to Home
+                  setIsModalVisible(false); // modal close
+                  navigation.navigate('Home'); // navigate to Home
                 }}
               />
             </View>
@@ -272,6 +275,20 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
     borderRadius: 1000
   },
+  uploadBadge: {
+    position: 'absolute',
+    bottom: 0,
+    alignSelf: 'center',
+    backgroundColor: colors.lightbrown,
+    paddingHorizontal: width * 0.035,
+    paddingVertical: height * 0.005,
+    borderRadius: 20,
+  },
+  uploadBadgeText: {
+    color: colors.white,
+    fontFamily: fontFamily.UrbanistBold,
+    fontSize: fontSizes.sm2,
+  },
   profText: {
     fontFamily: fontFamily.UrbanistBold,
     fontSize: fontSizes.md,
@@ -289,7 +306,7 @@ const styles = StyleSheet.create({
     width: width * 0.85,
   },
   btnMain: {
-    top: height * 0.2,
+    top: height * 0.45,
   },
   newHomeBaseWrapper: {
     width: width * 0.85,
@@ -376,7 +393,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 9999,
   },
-imgbg:{
+  imgbg: {
     alignSelf: 'center',
     width: width * 0.99,
     height: height * 0.9999,

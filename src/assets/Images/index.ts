@@ -9,6 +9,7 @@ const images: { [key: string]: ImageSourcePropType } = {
   continue: require('../Images/continue.png'),
   backIcon: require('../Images/backIcon.png'),
   profile: require('../Images/profile.png'),
+  camera: require('../Images/camera.png'),
   arrowdown: require('../Images/arrowdown.png'),
   success: require('../Images/success.png'),
   drawerIcon: require('../Images/drawerIcon.png'),

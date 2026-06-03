@@ -3,6 +3,7 @@ import AntDesign from '@react-native-vector-icons/ant-design';
 import React, { useEffect, useState } from 'react';
 import {
     Image,
+    ImageSourcePropType,
     Modal,
     ScrollView,
     StyleSheet,
@@ -28,12 +29,14 @@ interface CustomSelectProps {
     inputHeight: number;
     selectElements: SelectElement[];
     borderColor: string;
-    borderWidth: number;
+    borderWidth?: number;
     inputColor: string;
     borderRadius: number;
     onChangeText?: (value: string, id?: string | null) => void;
     setSelectedElement?: (value: string) => void;
     preselectedValue?: string | null;
+    defaultValue?: string | null;
+    rightIcon?: ImageSourcePropType;
     placeholder?: string;
 }
 
@@ -42,16 +45,18 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     inputHeight,
     selectElements,
     borderColor,
-    borderWidth,
+    borderWidth = 1,
     inputColor,
     borderRadius,
     onChangeText,
     setSelectedElement,
     preselectedValue,
+    defaultValue,
+    rightIcon = images.arrowdown,
     placeholder = 'Select',
 }) => {
     const [selectElem, setSelectElem] = useState<string>(
-        preselectedValue || selectElements[0]?.name || '',
+        preselectedValue || defaultValue || selectElements[0]?.name || '',
     );
     const [selectPop, setSelectPop] = useState<boolean>(false);
 
@@ -91,7 +96,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                     <Text style={globalStyle.selectText}>
                         {selectElem || placeholder}
                     </Text>
-                    <Image source={images.arrowdown} style={styles.icon} />
+                    <Image source={rightIcon} style={styles.icon} />
                 </TouchableOpacity>
             </View>
 
