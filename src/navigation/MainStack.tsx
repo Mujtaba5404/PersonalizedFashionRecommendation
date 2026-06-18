@@ -13,6 +13,12 @@ import OtpVerification from '../screens/OtpVerification';
 import CreateProfile from '../screens/CreateProfile';
 import Home from '../screens/Home';
 import Brand from '../screens/BrandStore';
+import BrandDetails from '../screens/BrandDetails';
+import ProductDetails from '../screens/ProductDetails';
+import Cart from '../screens/Cart';
+import Checkout from '../screens/Checkout';
+import AddDeliveryAddress, { DeliveryAddress } from '../screens/AddDeliveryAddress';
+import OrderSuccess from '../screens/OrderSuccess';
 import Favorite from '../screens/Favourite';
 import BottomTabs from './BottomTabs';
 import EditProfile from '../screens/EditProfile';
@@ -34,6 +40,27 @@ export type MainStackParamList = {
   CreateProfile: undefined;
   Home: undefined;
   Brand: undefined;
+  BrandDetails:
+    | {
+        image?: number;
+        date?: string;
+        title?: string;
+        author?: string;
+      }
+    | undefined;
+  ProductDetails:
+    | {
+        image?: number;
+        category?: string;
+        title?: string;
+        price?: string;
+        description?: string;
+      }
+    | undefined;
+  Cart: undefined;
+  Checkout: { address?: DeliveryAddress } | undefined;
+  AddDeliveryAddress: { address?: DeliveryAddress } | undefined;
+  OrderSuccess: undefined;
   Favorite: undefined;
   Profile: undefined;
   EditProfile: undefined;
@@ -64,6 +91,12 @@ const MainStack = () => {
       <Stack.Screen name="CreateProfile" component={CreateProfile} />
       <Stack.Screen name="Home" component={BottomTabs} />
       <Stack.Screen name="Brand" component={Brand} />
+      <Stack.Screen name="BrandDetails" component={BrandDetails} />
+      <Stack.Screen name="ProductDetails" component={ProductDetails} />
+      <Stack.Screen name="Cart" component={Cart} />
+      <Stack.Screen name="Checkout" component={Checkout} />
+      <Stack.Screen name="AddDeliveryAddress" component={AddDeliveryAddress} />
+      <Stack.Screen name="OrderSuccess" component={OrderSuccess} />
       <Stack.Screen name="Favorite" component={Favorite} />
       <Stack.Screen name="Profile" component={Profile} />
       <Stack.Screen name="EditProfile" component={EditProfile} />

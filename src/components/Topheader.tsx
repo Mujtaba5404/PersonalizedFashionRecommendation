@@ -1,4 +1,4 @@
-import { DrawerActions, NavigationProp, useNavigation } from '@react-navigation/native';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
   Image,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
+import SideMenu from './SideMenu';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -97,18 +98,17 @@ const TopHeader: React.FC<TopHeaderProps> = ({
   isCross = false,
 }) => {
   const navigation = useNavigation<NavigationProp<any>>();
-//   const User = useSelector((state: RootState) => state.role.user)
-//   const fullName = User?.firstName && User?.lastName ? `${User.firstName} ${User.lastName}` : "Name";
-//   const displayName = fullName.length > 10 ? `${fullName.slice(0, 8)}...` : fullName;
+  const [menuVisible, setMenuVisible] = useState(false);
+  //   const User = useSelector((state: RootState) => state.role.user)
+  //   const fullName = User?.firstName && User?.lastName ? `${User.firstName} ${User.lastName}` : "Name";
+  //   const displayName = fullName.length > 10 ? `${fullName.slice(0, 8)}...` : fullName;
 
   const handleDrawer = () => {
-    navigation.dispatch(DrawerActions.openDrawer());
-    console.log("Drawer Icon Clicked!")
+    setMenuVisible(true);
   };
 
   const handleFavouritePress = async () => {
     if (!onFavouritePress || (!videoId && !productId)) {
-      console.log("No videoId or productId or onFavouritePress provided");
       return;
     }
 
@@ -241,7 +241,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({
             </View>
           )}
           {notification && (
-            <View style={[styles.headerBell, { right: -width * 0.1}]}>
+            <View style={[styles.headerBell, { right: -width * 0.1 }]}>
               <TouchableOpacity
                 onPress={() => navigation.navigate('NotificationsScreen')}
               >
@@ -289,7 +289,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({
               // onPress={() => navigation.navigate("Favourites")}
               onPress={handleFavouritePress}
             >
-              <Image source={isFavourite ? images.filledFav : images.favIcon} style={styles.favIcon} />
+              <Image source={isFavourite ? images.Heart : images.Heart} style={styles.favIcon} />
             </TouchableOpacity>
           )}
           {skip && (
@@ -357,6 +357,8 @@ const TopHeader: React.FC<TopHeaderProps> = ({
           )}
         </View>
       </SafeAreaView>
+
+      <SideMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
     </View>
   );
 };
