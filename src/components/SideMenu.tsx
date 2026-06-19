@@ -27,11 +27,10 @@ type MenuItem = {
 
 const menuItems: MenuItem[] = [
   { label: 'Home', route: 'Home' },
-  { label: 'My Orders' },
-  { label: 'Orders History' },
-  { label: 'Rewards Badges' },
-  { label: 'Get Help', route: 'FAQS' },
-  { label: 'Payment Methods' },
+  { label: 'My Orders', route: 'MyOrders' },
+  { label: 'Orders History', route: 'OrdersHistory' },
+  { label: 'Get Help', route: 'CustomerSupport' },
+  { label: 'Payment Methods', route: 'PaymentMethods' },
 ];
 
 interface SideMenuProps {

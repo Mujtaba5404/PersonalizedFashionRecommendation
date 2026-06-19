@@ -3,6 +3,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import Splash from '../screens/Splash';
 import Onboarding from '../screens/Onboarding';
 import Register from '../screens/Register';
 import SignInEmail from '../screens/SignInEmail';
@@ -27,9 +28,15 @@ import ChangePassword from '../screens/ChangePassword';
 import TermsConditions from '../screens/TermsAndCondition';
 import PrivacyPolicy from '../screens/PrivacyPolicy';
 import FAQS from '../screens/Faqs';
+import CustomerSupport from '../screens/CustomerSupport';
+import OrdersHistory from '../screens/OrdersHistory';
+import WriteReview from '../screens/WriteReview';
+import PaymentMethods from '../screens/PaymentMethods';
+import MyOrders from '../screens/MyOrders';
 import CategoryProducts from '../screens/CategoryProducts';
 
 export type MainStackParamList = {
+  Splash: undefined;
   Onboarding: undefined;
   Register: undefined;
   SignInEmail: undefined;
@@ -68,6 +75,11 @@ export type MainStackParamList = {
   TermsConditions:undefined;
   PrivacyPolicy: undefined;
   FAQS: undefined;
+  CustomerSupport: undefined;
+  OrdersHistory: undefined;
+  WriteReview: undefined;
+  PaymentMethods: undefined;
+  MyOrders: undefined;
   CategoryProducts: {
     category: string;
     categoryName: string;
@@ -81,6 +93,7 @@ const Stack = createNativeStackNavigator<MainStackParamList>();
 const MainStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Splash" component={Splash} />
       <Stack.Screen name="Onboarding" component={Onboarding} />
       <Stack.Screen name="Register" component={Register} />
       <Stack.Screen name="SignInEmail" component={SignInEmail} />
@@ -104,6 +117,11 @@ const MainStack = () => {
       <Stack.Screen name="TermsConditions" component={TermsConditions} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} />
       <Stack.Screen name="FAQS" component={FAQS} />
+      <Stack.Screen name="CustomerSupport" component={CustomerSupport} />
+      <Stack.Screen name="OrdersHistory" component={OrdersHistory} />
+      <Stack.Screen name="WriteReview" component={WriteReview} />
+      <Stack.Screen name="PaymentMethods" component={PaymentMethods} />
+      <Stack.Screen name="MyOrders" component={MyOrders} />
       <Stack.Screen name="CategoryProducts" component={CategoryProducts} />
     </Stack.Navigator>
   );

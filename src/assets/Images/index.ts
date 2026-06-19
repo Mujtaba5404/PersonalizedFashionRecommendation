@@ -40,6 +40,11 @@ const images: { [key: string]: ImageSourcePropType } = {
   Remove: require('../Images/Remove.png'),
   plus: require('../Images/plus.png'),
   Checkout: require('../Images/Checkout.png'),
+  GetHelp: require('../Images/GetHelp.png'),
+  email: require('../Images/email.png'),
+  calender: require('../Images/calender.png'),
+  Stars: require('../Images/Stars.png'),
+  map: require('../Images/map.png'),
 };
 
 export default images;
