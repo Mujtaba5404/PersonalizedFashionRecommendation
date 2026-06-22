@@ -2,11 +2,15 @@ import { CommonActions, NavigationProp, useNavigation } from '@react-navigation/
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ImageBackground, Keyboard, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
 import CustomTextInput from '../components/CustomTextInput';
 import { MainStackParamList } from '../navigation/MainStack';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { setUser, setUserAuthToken } from '../redux/slice/roleSlice';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -15,13 +19,70 @@ import { fontSizes } from '../utilities/fontsizes';
 
 const SignInEmail = () => {
   const navigation = useNavigation<NavigationProp<any>>();
+  const dispatch = useAppDispatch();
+  const storedUser = useAppSelector(state => state.role.user);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fcmToken, setFcmToken] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const dismissKeyboard = () => {
     Keyboard.dismiss();
   }
+
+  const handleLogin = async () => {
+    if (loading) return;
+
+    if (!email.includes('@') || password.trim().length === 0) {
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid details',
+        text2: 'Please enter a valid email and password.',
+      });
+      return;
+    }
+
+    setLoading(true);
+    const { response, error } = await apiHelper('POST', 'login', {}, {}, {
+      email: email.trim(),
+      password: password,
+    });
+    setLoading(false);
+
+    if (response?.data?.access_token) {
+      dispatch(setUserAuthToken(response.data.access_token));
+      // The login response carries no profile. If the persisted user is the same
+      // person logging in (matching email), keep their stored name/image;
+      // otherwise it's stale data from another account, so reset to just the email.
+      const loggedInEmail = email.trim();
+      const isSameUser =
+        storedUser?.email?.toLowerCase() === loggedInEmail.toLowerCase();
+      dispatch(
+        setUser(
+          isSameUser
+            ? { ...storedUser, email: loggedInEmail }
+            : { email: loggedInEmail },
+        ),
+      );
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Logged in successfully.',
+      });
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        }),
+      );
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Login failed',
+        text2: typeof error === 'string' ? error : 'Invalid email or password.',
+      });
+    }
+  };
 
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
@@ -41,6 +102,7 @@ const SignInEmail = () => {
               inputWidth={width * 0.85}
               backgroundColor={colors.lightGray}
               borderRadius={20}
+              value={email}
               onChangeText={setEmail}
               keyboardType='email-address'
             />
@@ -67,11 +129,12 @@ const SignInEmail = () => {
               <CustomButton
                 btnHeight={height * 0.06}
                 btnWidth={width * 0.85}
-                text="Login"
+                text={loading ? 'Logging in...' : 'Login'}
                 backgroundColor={colors.lightbrown}
                 textColor={colors.white}
                 borderRadius={20}
-                onPress={() => navigation.navigate('Home')}
+                disabled={loading}
+                onPress={handleLogin}
               />
             </View>
           </View>

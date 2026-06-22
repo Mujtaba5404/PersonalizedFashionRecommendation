@@ -13,19 +13,27 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
+import CustomTextInput from '../components/CustomTextInput';
 import TopHeader from '../components/Topheader';
+import { useAppDispatch } from '../redux/hooks';
+import { removeUser } from '../redux/slice/roleSlice';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
 
 const Profile = () => {
   const navigation = useNavigation<NavigationProp<any>>();
+  const dispatch = useAppDispatch();
   const [isEnabled, setIsEnabled] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
 
   const toggleSwitch = () => setIsEnabled(previousState => !previousState);
@@ -34,9 +42,9 @@ const Profile = () => {
     setModalOpen(!modalOpen);
   };
 
-  const toggleModalSec = () => {
-    setModalOpen(false);
-    deleteAcc();
+  const closeDeleteModal = () => {
+    setModalVisible(false);
+    setPassword('');
   };
 
   const handleLogout = () => {
@@ -45,18 +53,32 @@ const Profile = () => {
   };
 
   const deleteAcc = async () => {
+    if (deleting) return;
+
+    if (password.trim().length === 0) {
+      Toast.show({
+        type: "error",
+        text1: "Password required",
+        text2: "Please enter your password to confirm deletion.",
+      });
+      return;
+    }
+
+    setDeleting(true);
     const { response, error } = await apiHelper(
       "DELETE",
-      "auth/delete-account",
+      "profile",
       {},
       {},
-      {}
+      { password },
     );
+    setDeleting(false);
+
     if (response) {
-      console.log(response.data);
+      closeDeleteModal();
       Toast.show({
         text1: "Success",
-        text2: "User Deleted Successfully",
+        text2: "Account deleted successfully.",
         type: "success",
       });
       dispatch(removeUser());
@@ -66,11 +88,10 @@ const Profile = () => {
           routes: [{ name: 'Register' }],
         }),
       );
-    } else {  
-      console.error("Error", error);
+    } else {
       Toast.show({
         text1: "Error",
-        text2: "Error Occured while Deleting User",
+        text2: typeof error === 'string' ? error : "Could not delete account. Please try again.",
         type: "error",
       });
     }
@@ -79,10 +100,10 @@ const Profile = () => {
 
 
   return (
-  <ImageBackground
-  source={images.Background}
-  style={styles.imgbg}
-  >
+    <ImageBackground
+      source={images.Background}
+      style={styles.imgbg}
+    >
       <View style={styles.topHeader}>
         <TopHeader text="Profile" isMenu={true} notificationSec={true} />
       </View>
@@ -142,26 +163,6 @@ const Profile = () => {
           <Text style={styles.optionText}>FAQS</Text>
         </TouchableOpacity>
 
-        <View style={styles.optionRow}>
-          <Text style={styles.optionText}>Push Notifications</Text>
-             <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={toggleSwitch}
-              style={[
-                styles.customToggleContainer,
-                { backgroundColor: isEnabled ? '#4A3433' : '#767577' }
-              ]}
-            >
-              <View style={[
-                styles.customToggleCircle,
-                {
-                  backgroundColor: isEnabled ? '#fff' : '#f4f3f4',
-                  transform: [{ translateX: isEnabled ? 
-                    (Platform.OS === 'ios' ? 20 : 22) : 0 }]
-                }
-              ]} />
-            </TouchableOpacity>
-        </View>
       </View>
 
       <View style={styles.btnMain}>
@@ -181,37 +182,44 @@ const Profile = () => {
         transparent={true}
         visible={modalVisible}
         animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={closeDeleteModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Image source={images.Bin} />
             <Text style={styles.modalTitle}>Are you Sure?</Text>
             <Text style={styles.modalSubtitle}>
-              Do you really want to delete these Account,
+              Enter your password to permanently delete your account.
             </Text>
 
-            <Text style={styles.modalSubtitle2}>
-              you’ll permanently lose your:
-            </Text>
+            <CustomTextInput
+              placeholder="Password"
+              placeholderTextColor={colors.black}
+              inputHeight={height * 0.06}
+              inputWidth={width * 0.75}
+              borderRadius={20}
+              isPassword={true}
+              value={password}
+              onChangeText={setPassword}
+            />
 
-            <View style={styles.modalButtonContainer}>
+            <View style={[styles.modalButtonContainer, { marginTop: height * 0.02 }]}>
               <TouchableOpacity
                 style={styles.cancelButton}
-                onPress={() => setModalVisible(false)}
-
+                onPress={closeDeleteModal}
+                disabled={deleting}
               >
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.deleteButtonModal}
-                onPress={() => {
-                  setModalVisible(false);
-                  navigation.navigate('Register')   // <-- NOW CALL API CORRECTLY
-                }}
+                onPress={deleteAcc}
+                disabled={deleting}
               >
-                <Text style={styles.deleteTextModal}>Delete Account</Text>
+                <Text style={styles.deleteTextModal}>
+                  {deleting ? 'Deleting...' : 'Delete Account'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -346,7 +354,6 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: width * 0.89,
-    height: height * 0.32,
     backgroundColor: colors.white,
     borderRadius: 15,
     padding: 20,
@@ -421,20 +428,20 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.black
   },
-customToggleContainer: {
-  width: 40,
-  height: 20,
-  borderRadius: 16,
-  justifyContent: 'center',
-  paddingHorizontal: 2,
-},
-customToggleCircle: {
-  width: 15,
-  height: 15,
-  borderRadius: 14,
-  // right: width * 0.02
-},
-imgbg:{
+  customToggleContainer: {
+    width: 40,
+    height: 20,
+    borderRadius: 16,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  customToggleCircle: {
+    width: 15,
+    height: 15,
+    borderRadius: 14,
+    // right: width * 0.02
+  },
+  imgbg: {
     alignSelf: 'center',
     width: width * 0.99,
     height: height * 0.9999,

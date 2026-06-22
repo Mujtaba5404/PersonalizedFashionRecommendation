@@ -17,10 +17,14 @@ import {
   View,
 } from 'react-native';
 import BouncyCheckbox from 'react-native-bouncy-checkbox';
+import Toast from 'react-native-toast-message';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
 import CustomTextInput from '../components/CustomTextInput';
+import { useAppDispatch } from '../redux/hooks';
+import { setUser } from '../redux/slice/roleSlice';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -42,9 +46,9 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 
 const Registeration = () => {
   const navigation = useNavigation<NavigationProp<any>>();
+  const dispatch = useAppDispatch();
   const [countrycode, setCountryCode] = useState('');
   const [firstName, setFirstName] = useState('');
-  const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -52,6 +56,7 @@ const Registeration = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setconfirmPassword] = useState('');
   const [agree, setAgree] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   // const [selectedCountry, setSelectedCountry] = useState(countryData[0]);
 
@@ -75,7 +80,8 @@ const Registeration = () => {
   // );
 
   const isConfirmPasswordValid = confirmPassword === password;
-  const isNameValid = name.trim().length >= 4;
+  const isNameValid =
+    firstName.trim().length >= 2 && lastName.trim().length >= 2;
   const isPhoneValid = phone.trim().length > 7;
   const isEmailValid = email.includes('@');
   const isPasswordValid = password.trim().length >= 8;
@@ -88,7 +94,62 @@ const Registeration = () => {
     isConfirmPasswordValid &&
     agree;
 
-  const uniqueId = Math.floor(Math.random() * 900) + 100;
+  const handleRegister = async () => {
+    if (loading) return;
+
+    if (!isFormValid) {
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid details',
+        text2: !isConfirmPasswordValid
+          ? 'Passwords do not match.'
+          : !agree
+          ? 'Please accept the Terms & Conditions.'
+          : 'Please fill in all fields correctly.',
+      });
+      return;
+    }
+
+    setLoading(true);
+    const { response, error } = await apiHelper('POST', 'register', {}, {}, {
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      phone_number: phone.trim(),
+      email: email.trim(),
+      password: password,
+      confirm_password: confirmPassword,
+    });
+    setLoading(false);
+
+    if (response) {
+      const user = response.data;
+      dispatch(
+        setUser({
+          id: user?.id,
+          name: `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim(),
+          email: user?.email,
+          phone: user?.phone_number,
+          image: user?.profile_image,
+        }),
+      );
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Account created successfully.',
+      });
+      navigation.navigate('OtpVerification', {
+        from: 'Register',
+        email: user?.email,
+        phone_number: user?.phone_number ?? phone.trim(),
+      });
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Registration failed',
+        text2: typeof error === 'string' ? error : 'Something went wrong. Please try again.',
+      });
+    }
+  };
 
 
 
@@ -310,9 +371,10 @@ const Registeration = () => {
               btnWidth={width * 0.85}
               backgroundColor={colors.lightbrown}
               borderRadius={20}
-              text="Register"
+              text={loading ? 'Registering...' : 'Register'}
               textColor={colors.white}
-              onPress={() => navigation.navigate('OtpVerification', { from: 'Register' })}
+              disabled={loading}
+              onPress={handleRegister}
             />
           </View>
           <View style={styles.bottomMain}>

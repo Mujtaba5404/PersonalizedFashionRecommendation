@@ -25,35 +25,59 @@ const TermsConditions = () => {
         <TopHeader text="Terms & Conditions" isBack={true} />
 
         <View style={styles.contentContainer}>
-          <ScrollView 
+          <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
           >
             <View style={styles.textContainer}>
-              
+
               <Text style={styles.paraText}>
-                Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
+                We may update these Terms from time to time.
+                We will notify you of material changes through
+                the App or by other reasonable means. Your
+                continued use after changes take effect constitutes
+                acceptance of the revised Terms.
               </Text>
-              
+
               <Text style={styles.paraText}>
-                Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
+                By downloading, accessing, or using the App, you
+                agree to be bound by these Terms. If you do not agree,
+                do not use the App.
               </Text>
 
               {/* Add more sections if needed */}
               <Text style={styles.subheading}>1. Introduction</Text>
               <Text style={styles.paraText}>
-                This is additional content. Lorem Ipsum is simply dummy text of the printing and typesetting industry.
+                By using ToneFit AI, you agree that the app analyses
+                your uploaded photographs and skin-tone data solely
+                to generate personalized fashion recommendations and
+                AR try-on previews, and that these results are suggestions
+                provided "as is" without guarantee of accuracy or fit.
               </Text>
 
               <Text style={styles.subheading}>2. User Agreement</Text>
               <Text style={styles.paraText}>
-                More content here. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.
+                By using ToneFit AI, you agree that the app analyses
+                your uploaded photographs and skin-tone data solely
+                to generate personalized fashion recommendations and
+                AR try-on previews, and that these results are suggestions
+                provided "as is" without guarantee of accuracy or fit.
+                You confirm that any images you upload are your own and
+                that you consent to their temporary processing for this
+                purpose. You agree not to misuse, copy, or redistribute
+                the app's content, and you accept that ToneFit AI and
+                its developers are not liable for purchasing decisions
+                made based on its recommendations. Continued use of the
+                application constitutes your acceptance of these terms.
               </Text>
 
-              <Text style={styles.subheading}>3. Privacy Policy</Text>
+              <Text style={styles.subheading}>3. Eligibility & Account</Text>
               <Text style={styles.paraText}>
-                Additional terms. When an unknown printer took a galley of type and scrambled it to make a type specimen book.
+                You must be at least *[18]* years old. You're responsible
+                for keeping your login secure and for all activity under
+                your account. We may suspend accounts that violate these
+                Terms.
               </Text>
             </View>
           </ScrollView>

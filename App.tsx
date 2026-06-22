@@ -49,16 +49,25 @@
 
 import { NavigationContainer } from '@react-navigation/native';
 import React from 'react';
-import MainStack from './src/navigation/MainStack';
-import { colors } from './src/utilities/colors';
 import { StyleSheet } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
+import MainStack from './src/navigation/MainStack';
+import { persistor, store } from './src/redux/store';
+import { colors } from './src/utilities/colors';
 
 
 const App = () => {
   return (
-          <NavigationContainer>
-            <MainStack />
-          </NavigationContainer>
+    <Provider store={store}>
+      <PersistGate loading={null} persistor={persistor}>
+        <NavigationContainer>
+          <MainStack />
+        </NavigationContainer>
+        <Toast />
+      </PersistGate>
+    </Provider>
   );
 };
 

@@ -25,35 +25,30 @@ const PrivacyPolicy = () => {
         <TopHeader text="Privacy Policy" isBack={true} />
 
         <View style={styles.contentContainer}>
-          <ScrollView 
+          <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
           >
             <View style={styles.textContainer}>
-              
+
               <Text style={styles.paraText}>
-                Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
-              </Text>
-              
-              <Text style={styles.paraText}>
-                Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
+                This Privacy Policy explains how ToneFit AI collects, uses,
+                and protects your personal information when you use the
+                application. We collect photographs you upload or capture,
+                detected skin-tone data, and basic preferences such as
+                body fit, occasion, and style choices needed to generate
+                recommendations. Purpose of Collection: Your data is used
+                only to detect skin tone, recommend suitable outfit colours,
+                and display AR try-on previews on your own image. Uploaded
+                photographs are processed temporarily to produce recommendations
+                and try-on results; they are not used for any unrelated purpose.
               </Text>
 
-              {/* Add more sections if needed */}
-              <Text style={styles.subheading}>1. Introduction</Text>
               <Text style={styles.paraText}>
-                This is additional content. Lorem Ipsum is simply dummy text of the printing and typesetting industry.
-              </Text>
-
-              <Text style={styles.subheading}>2. User Agreement</Text>
-              <Text style={styles.paraText}>
-                More content here. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.
-              </Text>
-
-              <Text style={styles.subheading}>3. Privacy Policy</Text>
-              <Text style={styles.paraText}>
-                Additional terms. When an unknown printer took a galley of type and scrambled it to make a type specimen book.
+                Personal images and results are stored only for as long as
+                necessary to provide the service and are removed thereafter
+                unless you choose to save them.
               </Text>
             </View>
           </ScrollView>

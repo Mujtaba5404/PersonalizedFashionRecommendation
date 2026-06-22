@@ -12,11 +12,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
 import TopHeader from '../components/Topheader';
 import { MainStackParamList } from '../navigation/MainStack';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -46,6 +48,43 @@ const ForgotPassword = () => {
   const [selectedCountry, setSelectedCountry] = useState(countryData[0]);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false)
+
+  const handleContinue = async () => {
+    if (loading) return;
+
+    if (!email.includes('@')) {
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid email',
+        text2: 'Please enter your registered email address.',
+      });
+      return;
+    }
+
+    setLoading(true);
+    const { response, error } = await apiHelper('POST', 'forgot-password', {}, {}, {
+      email: email.trim(),
+    });
+    setLoading(false);
+
+    if (response) {
+      Toast.show({
+        type: 'success',
+        text1: 'OTP sent',
+        text2: response.data?.message ?? 'An OTP has been sent to your email.',
+      });
+      navigation.navigate('SetNewPassword', {
+        from: 'ForgotPassword',
+        email: email.trim(),
+      });
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Request failed',
+        text2: typeof error === 'string' ? error : 'Could not send OTP. Please try again.',
+      });
+    }
+  };
 
 
   return (
@@ -79,13 +118,14 @@ const ForgotPassword = () => {
 
         <View style={styles.btnMain}>
           <CustomButton
-            text="Continue"
+            text={loading ? 'Sending...' : 'Continue'}
             textColor={colors.white}
             btnHeight={height * 0.065}
             btnWidth={width * 0.85}
             backgroundColor={colors.lightbrown}
             borderRadius={20}
-            onPress={() => navigation.navigate('SetNewPassword', { from: 'ForgotPassword' })}
+            disabled={loading}
+            onPress={handleContinue}
           />
 
         </View>

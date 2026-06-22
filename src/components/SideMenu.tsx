@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
+import { useAppSelector } from '../redux/hooks';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -41,6 +42,7 @@ interface SideMenuProps {
 const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const navigation = useNavigation<NavigationProp<any>>();
   const insets = useSafeAreaInsets();
+  const user = useAppSelector(state => state.role.user);
   const translateX = useRef(new Animated.Value(-PANEL_WIDTH)).current;
 
   useEffect(() => {
@@ -95,10 +97,17 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
             </TouchableOpacity>
 
             <View style={styles.profileRow}>
-              <Image source={images.profileImage} style={styles.avatar} />
+              <Image
+                source={user?.image ? { uri: String(user.image) } : images.profileImage}
+                style={styles.avatar}
+              />
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>Harden Scott</Text>
-                <Text style={styles.profileEmail}>harden.scott@example.com</Text>
+                <Text style={styles.profileName} numberOfLines={1}>
+                  {user?.name?.trim() || 'Guest User'}
+                </Text>
+                <Text style={styles.profileEmail} numberOfLines={1}>
+                  {user?.email || 'No email available'}
+                </Text>
               </View>
             </View>
           </View>

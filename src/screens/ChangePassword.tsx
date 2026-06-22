@@ -1,11 +1,13 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { Image, ImageBackground, Modal, Platform, StyleSheet, Text, View } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
 import CustomTextInput from '../components/CustomTextInput';
 import TopHeader from '../components/Topheader';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -24,9 +26,48 @@ const ChangePassword = () => {
     navigation.goBack()
   }
 
+  const handleChangePassword = async () => {
+    if (loading) return;
+
+    if (password.trim().length < 8) {
+      Toast.show({
+        type: 'error',
+        text1: 'Weak password',
+        text2: 'Password must be at least 8 characters long.',
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Toast.show({
+        type: 'error',
+        text1: 'Passwords do not match',
+        text2: 'Please make sure both passwords are the same.',
+      });
+      return;
+    }
+
+    setLoading(true);
+    const { response, error } = await apiHelper('POST', 'change-password', {}, {}, {
+      new_password: password,
+      confirm_password: confirmPassword,
+    });
+    setLoading(false);
+
+    if (response) {
+      setModalVisible(true);
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Could not change password',
+        text2: typeof error === 'string' ? error : 'Something went wrong. Please try again.',
+      });
+    }
+  };
+
   return (
     <ImageBackground
-    source={images.Background}
+      source={images.Background}
     >
       <View style={styles.topHeader}>
         <TopHeader text="Change Password" isBack={true} />
@@ -41,7 +82,7 @@ const ChangePassword = () => {
             inputWidth={width * 0.85}
             borderRadius={14}
             isPassword={true}
-            value={oldPass}         
+            value={oldPass}
             onChangeText={setOldPass}
           />
         </View>
@@ -108,14 +149,14 @@ const ChangePassword = () => {
 
         <View style={styles.btnMain}>
           <CustomButton
-            text="Change Password"
+            text={loading ? 'Changing...' : 'Change Password'}
             textColor={colors.white}
             btnHeight={height * 0.065}
             btnWidth={width * 0.85}
             backgroundColor={colors.lightbrown}
             borderRadius={20}
-        //   onPress={resetPassword}
-          onPress={() => navigation.goBack()}
+            disabled={loading}
+            onPress={handleChangePassword}
           />
         </View>
       </View>
@@ -138,7 +179,7 @@ const ChangePassword = () => {
               alignItems: 'center',
             }}
           >
-            <Image source={images.sucess} />
+            <Image source={images.success} />
 
             <Text
               style={{
@@ -158,7 +199,7 @@ const ChangePassword = () => {
                 textColor={colors.white}
                 btnHeight={height * 0.06}
                 btnWidth={width * 0.6}
-                backgroundColor={colors.marhoon}
+                backgroundColor={colors.brown}
                 borderRadius={30}
                 onPress={toggleModal}
               />
