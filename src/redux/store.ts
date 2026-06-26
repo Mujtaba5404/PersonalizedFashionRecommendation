@@ -10,6 +10,8 @@ import {
   REHYDRATE,
 } from 'redux-persist';
 import { mmkvStorage } from './mmkvAdaptar';
+import cartReducer from './slice/cartSlice';
+import paymentReducer from './slice/paymentSlice';
 import roleReducer from './slice/roleSlice';
 import screenReducer from './slice/screenSlice';
 
@@ -28,9 +30,21 @@ const screenPersistConfig = {
   whitelist: ['onboarded'],
 };
 
+const cartPersistConfig = {
+  key: 'cart',
+  storage: mmkvStorage,
+};
+
+const paymentPersistConfig = {
+  key: 'payment',
+  storage: mmkvStorage,
+};
+
 const rootReducer = combineReducers({
   role: persistReducer(rolePersistConfig, roleReducer),
   screen: persistReducer(screenPersistConfig, screenReducer),
+  cart: persistReducer(cartPersistConfig, cartReducer),
+  payment: persistReducer(paymentPersistConfig, paymentReducer),
 });
 
 export const store = configureStore({

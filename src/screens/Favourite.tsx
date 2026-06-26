@@ -1,5 +1,7 @@
-import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { NavigationProp, useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   ImageSourcePropType,
   ScrollView,
@@ -8,10 +10,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import TopHeader from '../components/Topheader';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -22,29 +26,43 @@ type FavouriteItem = {
   rating: string;
   name: string;
   by: string;
-  price: string;
-  hasAdd: boolean;
 };
 
-const favouriteItems: FavouriteItem[] = [
-  { id: 'f1', image: images.khadi, rating: '4.6 Rating', name: 'Dummy Text', by: 'By Devon Lane', price: '$110,00', hasAdd: true },
-  { id: 'f2', image: images.khadi, rating: '4.6 Rating', name: 'Dummy Text', by: 'By Eleanor Pena', price: '$110,00', hasAdd: true },
-  { id: 'f3', image: images.khadi, rating: '4.6 Rating', name: 'Dummy Text', by: 'By Devon Lane', price: '$110,00', hasAdd: false },
-  { id: 'f4', image: images.khadi, rating: '4.6 Rating', name: 'Dummy Text', by: 'By Eleanor Pena', price: '$110,00', hasAdd: false },
-];
+// Maps a raw /brands/favorites item: { id, name, description, image_url, rating }.
+// Some image_url values are local paths (e.g. "D:/...") the device can't load —
+// only accept real http(s) URLs, otherwise fall back to a local placeholder.
+const mapFavourite = (raw: any, index: number): FavouriteItem => {
+  const imageUrl = String(raw?.image_url || '');
+  const isRemote = /^https?:\/\//i.test(imageUrl);
+
+  return {
+    id: String(raw?.id ?? index),
+    image: isRemote ? { uri: imageUrl } : images.khadi,
+    name: raw?.name || 'Unknown',
+    by: raw?.description || '',
+    rating: raw?.rating != null ? `${raw.rating} Rating` : '4.6 Rating',
+  };
+};
 
 const FavouriteCard = ({
   item,
   onPress,
+  onToggleFavorite,
 }: {
   item: FavouriteItem;
   onPress?: () => void;
+  onToggleFavorite?: () => void;
 }) => (
   <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={onPress}>
     <View style={styles.cardImageWrap}>
       <Image source={item.image} style={styles.cardImage} />
-      <TouchableOpacity style={styles.heartButton} activeOpacity={0.7}>
-        <Image source={images.Heart} style={styles.heartIcon} />
+      <TouchableOpacity
+        style={styles.heartButton}
+        activeOpacity={0.7}
+        onPress={onToggleFavorite}
+      >
+        {/* Items here are all favourites — show the filled heart. */}
+        <Image source={images.HeartFilled} style={styles.heartIcon} />
       </TouchableOpacity>
     </View>
 
@@ -54,23 +72,88 @@ const FavouriteCard = ({
     </View>
 
     <Text style={styles.cardName}>{item.name}</Text>
-    <Text style={styles.cardBy}>{item.by}</Text>
-
-    {item.hasAdd ? (
-      <View style={styles.priceRow}>
-        <Text style={styles.cardPrice}>{item.price}</Text>
-        <TouchableOpacity style={styles.addButton} activeOpacity={0.8}>
-          <Text style={styles.addButtonText}>Add</Text>
-        </TouchableOpacity>
-      </View>
-    ) : (
-      <Text style={styles.cardPrice}>{item.price}</Text>
-    )}
+    {item.by ? (
+      <Text style={styles.cardBy} numberOfLines={2}>
+        {item.by}
+      </Text>
+    ) : null}
   </TouchableOpacity>
 );
 
 const Favorite = () => {
   const navigation = useNavigation<NavigationProp<any>>();
+  const [favourites, setFavourites] = useState<FavouriteItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchFavourites = useCallback(async () => {
+    setLoading(true);
+    const { response, error } = await apiHelper('GET', 'brands/favorites');
+    console.log('Favourites API Response:', response?.data);
+    setLoading(false);
+
+    if (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to load favourites',
+        text2:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.detail || 'Please try again.',
+      });
+      return;
+    }
+
+    // Endpoint may return an array or a wrapped object ({ results: [...] }).
+    const data = response?.data;
+    const list: any[] = Array.isArray(data)
+      ? data
+      : data?.results || data?.favorites || data?.brands || data?.data || [];
+
+    setFavourites(list.map(mapFavourite));
+
+    Toast.show({
+      type: 'success',
+      text1: 'Success',
+      text2: 'Favourites fetched successfully.',
+    });
+  }, []);
+
+  // Refetch on focus so newly (un)favourited brands stay in sync.
+  useFocusEffect(
+    useCallback(() => {
+      fetchFavourites();
+    }, [fetchFavourites]),
+  );
+
+  const unfavorite = useCallback(async (item: FavouriteItem) => {
+    // Optimistically remove the card; restore it if the request fails.
+    setFavourites(prev => prev.filter(f => f.id !== item.id));
+
+    const { error } = await apiHelper(
+      'POST',
+      `brands/${encodeURIComponent(item.name)}/toggle-favorite`,
+    );
+
+    if (error) {
+      // Restore on failure.
+      setFavourites(prev => [...prev, item]);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to update favourite',
+        text2:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.detail || 'Please try again.',
+      });
+      return;
+    }
+
+    Toast.show({
+      type: 'success',
+      text1: 'Removed from favourites',
+      text2: `${item.name} has been unfavourited.`,
+    });
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -80,21 +163,32 @@ const Favorite = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.grid}>
-          {favouriteItems.map(item => (
-            <FavouriteCard
-              key={item.id}
-              item={item}
-              onPress={() =>
-                navigation.navigate('BrandDetails', {
-                  image: item.image,
-                  title: item.name,
-                  author: item.by,
-                })
-              }
-            />
-          ))}
-        </View>
+        {loading ? (
+          <ActivityIndicator
+            size="large"
+            color={colors.brown}
+            style={styles.loader}
+          />
+        ) : favourites.length === 0 ? (
+          <Text style={styles.emptyText}>No favourites yet.</Text>
+        ) : (
+          <View style={styles.grid}>
+            {favourites.map(item => (
+              <FavouriteCard
+                key={item.id}
+                item={item}
+                onToggleFavorite={() => unfavorite(item)}
+                onPress={() =>
+                  navigation.navigate('BrandDetails', {
+                    image: item.image,
+                    title: item.name,
+                    author: item.by,
+                  })
+                }
+              />
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -180,26 +274,15 @@ const styles = StyleSheet.create({
     color: '#7A7A7A',
     marginBottom: height * 0.008,
   },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  loader: {
+    marginTop: height * 0.3,
   },
-  cardPrice: {
-    fontFamily: fontFamily.UrbanistExtraBold,
+  emptyText: {
+    fontFamily: fontFamily.UrbanistMedium,
     fontSize: fontSizes.md,
-    color: colors.black,
-  },
-  addButton: {
-    backgroundColor: colors.brown,
-    borderRadius: 10,
-    paddingHorizontal: width * 0.045,
-    paddingVertical: height * 0.009,
-  },
-  addButtonText: {
-    fontFamily: fontFamily.UrbanistSemiBold,
-    fontSize: fontSizes.sm2,
-    color: colors.white,
+    color: '#7A7A7A',
+    textAlign: 'center',
+    marginTop: height * 0.3,
   },
 });
 

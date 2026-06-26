@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useState } from 'react';
 import { ImageSourcePropType } from 'react-native';
 import {
+  ActivityIndicator,
   Image,
   ImageBackground,
   ScrollView,
@@ -9,10 +11,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import OrderDetailsSheet from '../components/OrderDetailsSheet';
 import TopHeader from '../components/Topheader';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -27,47 +31,66 @@ type Order = {
   qty: number;
   deliveryDate: string;
   price: string;
-  tab: OrderTab;
 };
 
-const ordersData: Order[] = [
-  {
-    id: 1,
-    image: images.Heel,
-    title: 'Dummy Text',
-    status: 'Pickup',
-    qty: 1,
-    deliveryDate: '25 Oct - 27 Oct',
-    price: '$12.56',
-    tab: 'Pending',
-  },
-  {
-    id: 2,
-    image: images.product2,
-    title: 'Dummy Text',
-    status: 'Pickup',
-    qty: 1,
-    deliveryDate: '25 Oct - 27 Oct',
-    price: '$12.56',
-    tab: 'Pending',
-  },
-  {
-    id: 3,
-    image: images.product1,
-    title: 'Dummy Text',
-    status: 'Delivered',
-    qty: 1,
-    deliveryDate: '25 Oct',
-    price: '$12.56',
-    tab: 'Delivered',
-  },
-];
+// Maps a raw /payment/my-orders item to the UI's Order shape, tolerating the
+// various field names the backend may use.
+const mapOrder = (raw: any, index: number): Order => {
+  const imageUrl = String(raw?.image_url || raw?.image || '');
+  const isRemote = /^https?:\/\//i.test(imageUrl);
+  const price = raw?.price ?? raw?.total_amount ?? raw?.total;
+
+  return {
+    id: Number(raw?.id ?? raw?.order_id ?? index),
+    image: isRemote ? { uri: imageUrl } : images.Heel,
+    title: raw?.product_name || raw?.title || raw?.name || 'Order',
+    status: raw?.status || raw?.order_status || '',
+    qty: Number(raw?.quantity ?? raw?.qty ?? 1),
+    deliveryDate: raw?.delivery_date || raw?.deliveryDate || '',
+    price: price != null ? `Rs. ${price}` : '',
+  };
+};
 
 const MyOrders = () => {
   const [activeTab, setActiveTab] = useState<OrderTab>('Pending');
   const [detailsVisible, setDetailsVisible] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const visibleOrders = ordersData.filter(order => order.tab === activeTab);
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    const { response, error } = await apiHelper('GET', 'payment/my-orders', {
+      status: activeTab.toLowerCase(),
+    });
+    setLoading(false);
+
+    if (error) {
+      setOrders([]);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to load orders',
+        text2:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.detail || 'Please try again.',
+      });
+      return;
+    }
+
+    const data = response?.data;
+    const list: any[] = Array.isArray(data)
+      ? data
+      : data?.results || data?.orders || data?.data || [];
+
+    setOrders(list.map(mapOrder));
+  }, [activeTab]);
+
+  // Refetch on focus and whenever the active tab (status filter) changes.
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [fetchOrders]),
+  );
 
   return (
     <ImageBackground
@@ -101,8 +124,17 @@ const MyOrders = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {visibleOrders.map(order => (
-          <View key={order.id} style={styles.card}>
+        {loading ? (
+          <ActivityIndicator
+            size="large"
+            color={colors.lightbrown}
+            style={styles.loader}
+          />
+        ) : orders.length === 0 ? (
+          <Text style={styles.emptyText}>No {activeTab.toLowerCase()} orders.</Text>
+        ) : (
+          orders.map(order => (
+            <View key={order.id} style={styles.card}>
             <View style={styles.cardTop}>
               <Image source={order.image} style={styles.productImage} />
 
@@ -131,7 +163,8 @@ const MyOrders = () => {
               <Text style={styles.detailsButtonText}>Order Details</Text>
             </TouchableOpacity>
           </View>
-        ))}
+          ))
+        )}
       </ScrollView>
 
       <OrderDetailsSheet
@@ -260,6 +293,16 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.UrbanistBold,
     fontSize: fontSizes.md,
     color: colors.white,
+  },
+  loader: {
+    marginTop: height * 0.3,
+  },
+  emptyText: {
+    fontFamily: fontFamily.UrbanistMedium,
+    fontSize: fontSizes.md,
+    color: colors.black,
+    textAlign: 'center',
+    marginTop: height * 0.3,
   },
 });
 

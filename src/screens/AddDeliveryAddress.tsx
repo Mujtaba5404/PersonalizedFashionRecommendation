@@ -17,15 +17,18 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BouncyCheckbox from 'react-native-bouncy-checkbox';
 import { CountryPicker } from 'react-native-country-codes-picker';
+import Toast from 'react-native-toast-message';
 import { fontFamily } from '../assets/Fonts';
 import CustomButton from '../components/CustomButton';
 import CustomSelect from '../components/CustomSelect';
 import TopHeader from '../components/Topheader';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
 
 export interface DeliveryAddress {
+  id?: string | number;
   fullName: string;
   countryCode: string;
   flag: string;
@@ -77,6 +80,7 @@ const AddDeliveryAddress = () => {
   const [label, setLabel] = useState<'Home' | 'Office'>(existing?.label ?? 'Home');
   const [isDefault, setIsDefault] = useState(existing?.isDefault ?? true);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const isFormValid =
     fullName.trim().length > 0 &&
@@ -91,7 +95,9 @@ const AddDeliveryAddress = () => {
     setShowCountryPicker(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saving) return;
+
     const address: DeliveryAddress = {
       fullName: fullName.trim(),
       countryCode,
@@ -104,6 +110,36 @@ const AddDeliveryAddress = () => {
       label,
       isDefault,
     };
+
+    setSaving(true);
+    const { error } = await apiHelper('POST', 'payment/address', {}, {}, {
+      full_name: address.fullName,
+      phone_number: `${countryCode}${address.phone}`,
+      province: address.province,
+      city: address.city,
+      area_code: address.areaCode,
+      complete_address: address.completeAddress,
+      label: address.label,
+    });
+    setSaving(false);
+
+    if (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to save address',
+        text2:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.detail || 'Please try again.',
+      });
+      return;
+    }
+
+    Toast.show({
+      type: 'success',
+      text1: 'Address saved',
+      text2: 'Your delivery address has been saved.',
+    });
     navigation.navigate('Checkout', { address });
   };
 
@@ -246,14 +282,14 @@ const AddDeliveryAddress = () => {
       {/* FOOTER */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + height * 0.02 }]}>
         <CustomButton
-          text="Save"
+          text={saving ? 'Saving...' : 'Save'}
           textColor={colors.white}
           backgroundColor={colors.lightbrown}
           borderRadius={25}
           btnWidth={width * 0.9}
           btnHeight={height * 0.075}
           fontSize={fontSizes.md}
-          disabled={!isFormValid}
+          disabled={!isFormValid || saving}
           onPress={handleSave}
         />
       </View>

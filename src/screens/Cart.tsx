@@ -9,20 +9,45 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { removeFromCart } from '../redux/slice/cartSlice';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
 import TopHeader from '../components/Topheader';
 
+// Pulls the numeric value out of a formatted price string like "Rs. 37,219.00".
+// Strips thousands-separator commas, then grabs the first number run so a
+// currency prefix such as "Rs." (which contains a dot) can't corrupt parsing.
+const parsePrice = (price: string) => {
+  const match = String(price).replace(/,/g, '').match(/\d+(\.\d+)?/);
+  return match ? parseFloat(match[0]) : 0;
+};
+
+// Formats a whole-rupee amount with thousands separators, e.g. 37219 -> "37,219".
+const formatAmount = (value: number) => {
+  return Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
+
 const Cart = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const insets = useSafeAreaInsets();
+  const dispatch = useAppDispatch();
+  const items = useAppSelector(state => state.cart.items);
   const [coupon, setCoupon] = useState('');
+
+  const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
+  const totalAmount = items.reduce(
+    (sum, i) => sum + parsePrice(i.price) * i.quantity,
+    0,
+  );
+  const currencyPrefix = items[0]?.price?.includes('$') ? '$' : 'Rs. ';
 
   return (
     <View style={styles.container}>
@@ -32,57 +57,91 @@ const Cart = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* CART ITEM */}
-        <View style={styles.cartItem}>
-          <Image source={images.Heel} style={styles.itemImage} />
+        {items.length === 0 ? (
+          <Text style={styles.emptyText}>Your cart is empty.</Text>
+        ) : (
+          <>
+            {/* CART ITEMS */}
+            {items.map(item => (
+              <View key={`${item.productId}-${item.size}`} style={styles.cartItem}>
+                <Image source={item.image} style={styles.itemImage} />
 
-          <View style={styles.itemInfo}>
-            <View style={styles.itemTopRow}>
-              <Text style={styles.itemName}>Dummy Text</Text>
-              <TouchableOpacity activeOpacity={0.7}>
-                <Image source={images.Remove} style={{ width: 25, height: 30 }} />
+                <View style={styles.itemInfo}>
+                  <View style={styles.itemTopRow}>
+                    <Text style={styles.itemName} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        dispatch(
+                          removeFromCart({
+                            productId: item.productId,
+                            size: item.size,
+                          }),
+                        )
+                      }
+                    >
+                      <Image
+                        source={images.Remove}
+                        style={{ width: 25, height: 30 }}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  {item.description ? (
+                    <Text style={styles.itemDesc} numberOfLines={1}>
+                      {item.description}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.itemStock}>
+                    Size: {item.size}  •  Qty: {item.quantity}
+                  </Text>
+                  <Text style={styles.itemPrice}>{item.price}</Text>
+                </View>
+              </View>
+            ))}
+
+            {/* COUPON */}
+            <View style={styles.couponContainer}>
+              <TextInput
+                style={styles.couponInput}
+                placeholder="Apply Coupon Code"
+                placeholderTextColor={colors.black}
+                value={coupon}
+                onChangeText={setCoupon}
+              />
+              <TouchableOpacity style={styles.applyButton} activeOpacity={0.8}>
+                <Text style={styles.applyText}>Apply</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.itemDesc} numberOfLines={1}>
-              Lorem Ipsum is simply dummy text...
-            </Text>
-            <Text style={styles.itemStock}>Only 5 Items in stock</Text>
-            <Text style={styles.itemPrice}>$4,500</Text>
-          </View>
-        </View>
-
-        {/* COUPON */}
-        <View style={styles.couponContainer}>
-          <TextInput
-            style={styles.couponInput}
-            placeholder="Apply Coupon Code"
-            placeholderTextColor={colors.black}
-            value={coupon}
-            onChangeText={setCoupon}
-          />
-          <TouchableOpacity style={styles.applyButton} activeOpacity={0.8}>
-            <Text style={styles.applyText}>Apply</Text>
-          </TouchableOpacity>
-        </View>
+          </>
+        )}
       </ScrollView>
 
       {/* FOOTER */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + height * 0.02 }]}>
-        <View>
-          <Text style={styles.totalItems}>Total 3 items</Text>
-          <Text style={styles.totalPrice}>$4,500</Text>
+      {items.length > 0 && (
+        <View
+          style={[styles.footer, { paddingBottom: insets.bottom + height * 0.02 }]}
+        >
+          <View>
+            <Text style={styles.totalItems}>Total {totalQuantity} items</Text>
+            <Text style={styles.totalPrice}>
+              {currencyPrefix}
+              {formatAmount(totalAmount)}
+            </Text>
+          </View>
+          <CustomButton
+            text="Order Now"
+            textColor={colors.white}
+            backgroundColor={colors.lightbrown}
+            borderRadius={20}
+            btnWidth={width * 0.42}
+            btnHeight={height * 0.07}
+            fontSize={fontSizes.md}
+            onPress={() => navigation.navigate('Checkout')}
+          />
         </View>
-        <CustomButton
-          text="Order Now"
-          textColor={colors.white}
-          backgroundColor={colors.lightbrown}
-          borderRadius={20}
-          btnWidth={width * 0.42}
-          btnHeight={height * 0.07}
-          fontSize={fontSizes.md}
-          onPress={() => navigation.navigate('Checkout')}
-        />
-      </View>
+      )}
     </View>
   );
 };
@@ -111,6 +170,14 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.UrbanistBold,
     fontSize: fontSizes.md,
     color: colors.black,
+  },
+
+  emptyText: {
+    fontFamily: fontFamily.UrbanistMedium,
+    fontSize: fontSizes.md,
+    color: '#7A7A7A',
+    textAlign: 'center',
+    marginTop: height * 0.3,
   },
 
   // Cart item

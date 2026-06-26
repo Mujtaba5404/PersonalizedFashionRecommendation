@@ -20,15 +20,11 @@ import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
 import TopHeader from '../components/Topheader';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { addCard, removeCard, selectCard } from '../redux/slice/paymentSlice';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
-
-type Card = {
-  id: number;
-  name: string;
-  last4: string;
-};
 
 // Small Mastercard-style logo built from two overlapping circles
 const MastercardLogo = () => (
@@ -94,11 +90,10 @@ const SwipeableCard = ({
 
 const PaymentMethods = () => {
   const navigation = useNavigation<NavigationProp<any>>();
+  const dispatch = useAppDispatch();
 
-  const [cards, setCards] = useState<Card[]>([
-    { id: 1, name: 'Debit/Credit Card', last4: '4567' },
-  ]);
-  const [selectedId, setSelectedId] = useState<number>(1);
+  const cards = useAppSelector(state => state.payment.cards);
+  const selectedId = useAppSelector(state => state.payment.selectedCardId);
 
   // Add Card sheet state
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -122,26 +117,22 @@ const PaymentMethods = () => {
   };
 
   const handleDeleteCard = (id: number) => {
-    setCards(prev => {
-      const next = prev.filter(c => c.id !== id);
-      // Keep a valid selection after deletion
-      if (id === selectedId) {
-        setSelectedId(next.length ? next[0].id : 0);
-      }
-      return next;
-    });
+    dispatch(removeCard(id));
   };
 
   const handleAddCard = () => {
     const digits = cardNumber.replace(/\s/g, '');
     const last4 = digits.slice(-4) || '0000';
-    const newCard: Card = {
-      id: cards.length ? cards[cards.length - 1].id + 1 : 1,
-      name: nameOnCard.trim() || 'Debit/Credit Card',
-      last4,
-    };
-    setCards(prev => [...prev, newCard]);
-    setSelectedId(newCard.id);
+    dispatch(
+      addCard({
+        id: cards.length ? cards[cards.length - 1].id + 1 : 1,
+        name: nameOnCard.trim() || 'Debit/Credit Card',
+        number: digits,
+        expiry: expiry.trim(),
+        cvv: cvv.trim(),
+        last4,
+      }),
+    );
     closeSheet();
   };
 
@@ -164,7 +155,7 @@ const PaymentMethods = () => {
               <TouchableOpacity
                 style={styles.cardRow}
                 activeOpacity={0.8}
-                onPress={() => setSelectedId(card.id)}
+                onPress={() => dispatch(selectCard(card.id))}
               >
                 <MastercardLogo />
 

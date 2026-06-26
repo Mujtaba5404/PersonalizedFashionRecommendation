@@ -87,82 +87,78 @@ const SignInEmail = () => {
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <ImageBackground
-      source={images.Background}
-      style={styles.imgbg}
+        source={images.Background}
+        style={styles.imgbg}
       >
         <View style={{ flex: 1 }}>
-        <View style={styles.container}>
-          <Image source={images.Logo} style={styles.logo} />
-          <Text style={styles.welcomeText}>Welcome back</Text>
-          <View style={styles.inputMain}>
-            <CustomTextInput
-              placeholder="Email Address"
-              placeholderTextColor={colors.black}
-              inputHeight={height * 0.06}
-              inputWidth={width * 0.85}
-              backgroundColor={colors.lightGray}
-              borderRadius={20}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType='email-address'
-            />
-            <CustomTextInput
-              placeholder="Password"
-              placeholderTextColor={colors.black}
-              inputHeight={height * 0.06}
-              inputWidth={width * 0.85}
-              backgroundColor={colors.lightGray}
-              borderRadius={20}
-              isPassword={true}
-              value={password}
-              onChangeText={setPassword}
-              keyboardType='default'
-            />
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.forgotPassMain}
-              onPress={() => navigation.navigate('ForgotPassword')}
-            >
-              <Text style={styles.forgotPass}>Forgot Password?</Text>
-            </TouchableOpacity>
-            <View style={{ alignItems: 'center', top: height * 0.04 }}>
-              <CustomButton
-                btnHeight={height * 0.06}
-                btnWidth={width * 0.85}
-                text={loading ? 'Logging in...' : 'Login'}
-                backgroundColor={colors.lightbrown}
-                textColor={colors.white}
+          <View style={styles.container}>
+            <Image source={images.Logo} style={styles.logo} />
+            <Text style={styles.welcomeText}>Welcome back</Text>
+            <View style={styles.inputMain}>
+              <CustomTextInput
+                placeholder="Email Address"
+                placeholderTextColor={colors.black}
+                inputHeight={height * 0.06}
+                inputWidth={width * 0.85}
+                backgroundColor={colors.lightGray}
                 borderRadius={20}
-                disabled={loading}
-                onPress={handleLogin}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType='email-address'
               />
-            </View>
-          </View>
-          <View style={styles.belowMain}>
-            <Image source={images.continue} style={styles.continueImg} />
-
-            <View style={{flexDirection:'row', alignSelf:'center'}}>
-            <TouchableOpacity style={styles.socialMain}>
-              <Image source={images.googleIcon} style={styles.scialImg} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.socialMain}>
-              <Image source={images.appleIcon} style={styles.scialImg} />
-            </TouchableOpacity>
-            </View>
-
-            <View style={styles.memberMain}>
-              <Text style={styles.memberText}>Not a member?</Text>
+              <CustomTextInput
+                placeholder="Password"
+                placeholderTextColor={colors.black}
+                inputHeight={height * 0.06}
+                inputWidth={width * 0.85}
+                backgroundColor={colors.lightGray}
+                borderRadius={20}
+                isPassword={true}
+                value={password}
+                onChangeText={setPassword}
+                keyboardType='default'
+              />
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => navigation.navigate('Registeration')}
+                style={styles.forgotPassMain}
+                onPress={() => navigation.navigate('ForgotPassword')}
               >
-                <Text style={styles.signUpText}>Sign up now</Text>
+                <Text style={styles.forgotPass}>Forgot Password?</Text>
               </TouchableOpacity>
+              <View style={{ alignItems: 'center', top: height * 0.04 }}>
+                <CustomButton
+                  btnHeight={height * 0.06}
+                  btnWidth={width * 0.85}
+                  text={loading ? 'Logging in...' : 'Login'}
+                  backgroundColor={colors.lightbrown}
+                  textColor={colors.white}
+                  borderRadius={20}
+                  disabled={loading}
+                  onPress={handleLogin}
+                />
+              </View>
+            </View>
+            <View style={styles.belowMain}>
+              <Image source={images.continue} style={styles.continueImg} />
+
+              <View style={{ flexDirection: 'row', alignSelf: 'center' }}>
+                <TouchableOpacity style={styles.socialMain}>
+                  <Image source={images.googleIcon} style={styles.scialImg} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.memberMain}>
+                <Text style={styles.memberText}>Not a member?</Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Registeration')}
+                >
+                  <Text style={styles.signUpText}>Sign up now</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
-      </View>
       </ImageBackground>
     </TouchableWithoutFeedback>
   );
@@ -245,7 +241,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 9999,
   },
-    imgbg:{
+  imgbg: {
     alignSelf: 'center',
     width: width * 0.99,
     height: height * 0.9999,

@@ -1,5 +1,13 @@
-import { useRoute, RouteProp, useNavigation, NavigationProp } from '@react-navigation/native';
 import {
+  useRoute,
+  RouteProp,
+  useNavigation,
+  NavigationProp,
+  useFocusEffect,
+} from '@react-navigation/native';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
   Image,
   ImageSourcePropType,
   ScrollView,
@@ -8,9 +16,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import TopHeader from '../components/Topheader';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -20,6 +30,7 @@ type Product = {
   image: ImageSourcePropType;
   name: string;
   collection: string;
+  price: string;
 };
 
 type BrandDetailsParams = {
@@ -28,13 +39,22 @@ type BrandDetailsParams = {
     date?: string;
     title?: string;
     author?: string;
+    brandName?: string;
   };
 };
 
-const trendingProducts: Product[] = [
-  { id: 'p1', image: images.Heel, name: 'Stilet High Heel', collection: 'Summer collection 2024' },
-  { id: 'p2', image: images.Bag, name: 'Satchel Bag', collection: 'Spring collection 2022' },
-];
+const mapProduct = (raw: any, index: number): Product => {
+  const imageUrl = String(raw?.image_url || '');
+  const isRemote = /^https?:\/\//i.test(imageUrl);
+
+  return {
+    id: String(raw?.id ?? index),
+    image: isRemote ? { uri: imageUrl } : images.khadi,
+    name: raw?.sub_category || raw?.main_category || 'Product',
+    collection: raw?.main_category || '',
+    price: raw?.price ? `Rs. ${raw.price}` : '',
+  };
+};
 
 const BrandDetails = () => {
   const navigation = useNavigation<NavigationProp<any>>();
@@ -46,6 +66,79 @@ const BrandDetails = () => {
     title: route.params?.title ?? 'Different Winter',
     author: route.params?.author ?? 'by Mia Jackson',
   };
+
+  const brandName = route.params?.brandName ?? route.params?.title;
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchProducts = useCallback(async () => {
+    if (!brandName) return;
+
+    setLoading(true);
+    const { response, error } = await apiHelper(
+      'GET',
+      `brands/${encodeURIComponent(brandName)}/products`,
+    );
+    setLoading(false);
+
+    if (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to load products',
+        text2:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.detail || 'Please try again.',
+      });
+      return;
+    }
+
+    const data = response?.data;
+    const list: any[] = Array.isArray(data)
+      ? data
+      : data?.results || data?.products || data?.data || [];
+
+    setProducts(list.map(mapProduct));
+
+    Toast.show({
+      type: 'success',
+      text1: 'Success',
+      text2: 'Trending products fetched successfully.',
+    });
+  }, [brandName]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProducts();
+    }, [fetchProducts]),
+  );
+
+  // Split into two staggered columns to keep the original masonry look
+  const leftColumn = products.filter((_, i) => i % 2 === 0);
+  const rightColumn = products.filter((_, i) => i % 2 === 1);
+
+  const renderProduct = (item: Product) => (
+    <View key={item.id} style={styles.productCard}>
+      <TouchableOpacity
+        style={styles.productImageBox}
+        activeOpacity={0.85}
+        onPress={() =>
+          navigation.navigate('ProductDetails', {
+            image: item.image,
+            title: item.name,
+            category: item.collection,
+            price: item.price,
+            productId: item.id,
+          })
+        }
+      >
+        <Image source={item.image} style={styles.productImage} />
+      </TouchableOpacity>
+      <Text style={styles.productName}>{item.name}</Text>
+      {!!item.price && <Text style={styles.productCollection}>{item.price}</Text>}
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -73,30 +166,23 @@ const BrandDetails = () => {
       >
         <Text style={styles.sectionTitle}>Trending Products</Text>
 
-        <View style={styles.productsRow}>
-          {trendingProducts.map((item, index) => (
-            <View
-              key={item.id}
-              style={[styles.productColumn, index === 1 && styles.productColumnOffset]}
-            >
-              <TouchableOpacity
-                style={styles.productImageBox}
-                activeOpacity={0.85}
-                onPress={() =>
-                  navigation.navigate('ProductDetails', {
-                    image: item.image,
-                    title: item.name,
-                    category: item.collection,
-                  })
-                }
-              >
-                <Image source={item.image} style={styles.productImage} />
-              </TouchableOpacity>
-              <Text style={styles.productName}>{item.name}</Text>
-              <Text style={styles.productCollection}>{item.collection}</Text>
+        {loading && products.length === 0 ? (
+          <ActivityIndicator
+            color={colors.black}
+            style={{ marginTop: height * 0.05 }}
+          />
+        ) : products.length === 0 ? (
+          <Text style={styles.emptyText}>No products available.</Text>
+        ) : (
+          <View style={styles.productsRow}>
+            <View style={styles.productColumn}>
+              {leftColumn.map(renderProduct)}
             </View>
-          ))}
-        </View>
+            <View style={[styles.productColumn, styles.productColumnOffset]}>
+              {rightColumn.map(renderProduct)}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -182,6 +268,16 @@ const styles = StyleSheet.create({
   },
   productColumnOffset: {
     marginTop: height * 0.06,
+  },
+  productCard: {
+    marginBottom: height * 0.025,
+  },
+  emptyText: {
+    fontFamily: fontFamily.UrbanistMedium,
+    fontSize: fontSizes.md,
+    color: '#8A8A8A',
+    textAlign: 'center',
+    marginTop: height * 0.05,
   },
   productImageBox: {
     width: '100%',

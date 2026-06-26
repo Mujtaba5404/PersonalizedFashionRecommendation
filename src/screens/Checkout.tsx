@@ -15,21 +15,49 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BouncyCheckbox from 'react-native-bouncy-checkbox';
+import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useStripe } from '@stripe/stripe-react-native';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
 import TopHeader from '../components/Topheader';
+import { STRIPE_MERCHANT_NAME } from '../config/stripe';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { clearCart, removeFromCart } from '../redux/slice/cartSlice';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
 import { DeliveryAddress } from './AddDeliveryAddress';
 
-const summaryRows = [
-  { label: 'Items Total', value: '$12.56' },
-  { label: 'Delivery Fee', value: '$2.55' },
-  { label: 'Delivery Discount', value: '$-1.55' },
-];
+// Pulls the numeric value out of a formatted price string like "Rs. 37,219.00".
+// Strips thousands-separator commas, then grabs the first number run so a
+// currency prefix such as "Rs." (which contains a dot) can't corrupt parsing.
+const parsePrice = (price: string) => {
+  const match = String(price).replace(/,/g, '').match(/\d+(\.\d+)?/);
+  return match ? parseFloat(match[0]) : 0;
+};
+
+// Formats a whole-rupee amount with thousands separators, e.g. 37219 -> "37,219".
+const formatAmount = (value: number) => {
+  return Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
+
+// Builds a single-line delivery address string from a saved address object.
+const formatAddress = (address: DeliveryAddress | null): string => {
+  if (!address) return '';
+  return [
+    address.completeAddress,
+    address.areaCode,
+    address.city,
+    address.province,
+  ]
+    .filter(Boolean)
+    .join(', ');
+};
 
 type CheckoutRoute = {
   Checkout: { address?: DeliveryAddress } | undefined;
@@ -39,14 +67,156 @@ const Checkout = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const route = useRoute<RouteProp<CheckoutRoute, 'Checkout'>>();
   const insets = useSafeAreaInsets();
+  const dispatch = useAppDispatch();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const items = useAppSelector(state => state.cart.items);
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('pickup');
   const [address, setAddress] = useState<DeliveryAddress | null>(null);
+
+  const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
+  const itemsTotal = items.reduce(
+    (sum, i) => sum + parsePrice(i.price) * i.quantity,
+    0,
+  );
+  const currencyPrefix = items[0]?.price?.includes('$') ? '$' : 'Rs. ';
+
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash'>('card');
+  const [placing, setPlacing] = useState(false);
 
   useEffect(() => {
     if (route.params?.address) {
       setAddress(route.params.address);
     }
   }, [route.params?.address]);
+
+  // Runs the Stripe PaymentSheet. Returns true only if the charge succeeded.
+  // Requires a backend endpoint that creates a PaymentIntent and returns its
+  // client_secret (the Stripe SECRET key must stay on the server, never here).
+  const payWithStripe = async (): Promise<boolean> => {
+    const { response, error } = await apiHelper(
+      'POST',
+      'payment/create-intent',
+      {},
+      {},
+      {
+        // Amount in the smallest currency unit (e.g. paisa). The backend
+        // should re-compute/validate this from the user's cart, not trust it.
+        amount: Math.round(itemsTotal * 100),
+        currency: 'pkr',
+      },
+    );
+
+    if (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Payment setup failed',
+        text2:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.detail || 'Please try again.',
+      });
+      return false;
+    }
+
+    const data: any = response?.data || {};
+    const clientSecret =
+      data.client_secret ?? data.clientSecret ?? data.paymentIntentClientSecret;
+
+    if (!clientSecret) {
+      Toast.show({
+        type: 'error',
+        text1: 'Payment setup failed',
+        text2: 'Could not start the payment. Please try again.',
+      });
+      return false;
+    }
+
+    const init = await initPaymentSheet({
+      merchantDisplayName: STRIPE_MERCHANT_NAME,
+      paymentIntentClientSecret: clientSecret,
+      customerId: data.customer,
+      customerEphemeralKeySecret: data.ephemeral_key ?? data.ephemeralKey,
+      defaultBillingDetails: { name: address?.fullName },
+    });
+
+    if (init.error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Payment error',
+        text2: init.error.message,
+      });
+      return false;
+    }
+
+    const { error: sheetError } = await presentPaymentSheet();
+
+    if (sheetError) {
+      // Stripe returns code 'Canceled' when the user dismisses the sheet.
+      if (sheetError.code !== 'Canceled') {
+        Toast.show({
+          type: 'error',
+          text1: 'Payment failed',
+          text2: sheetError.message,
+        });
+      }
+      return false;
+    }
+
+    return true;
+  };
+
+  const handlePlaceOrder = async () => {
+    if (placing) return;
+
+    const deliveryAddress = formatAddress(address);
+
+    if (deliveryType === 'delivery' && !deliveryAddress) {
+      Toast.show({
+        type: 'error',
+        text1: 'Address required',
+        text2: 'Please add a delivery address.',
+      });
+      return;
+    }
+
+    setPlacing(true);
+
+    // Card payments go through Stripe; cash skips it.
+    if (paymentMethod === 'card') {
+      const paid = await payWithStripe();
+      if (!paid) {
+        setPlacing(false);
+        return;
+      }
+    }
+
+    // Finalize the order on the backend (no raw card data — Stripe handled it).
+    const { error } = await apiHelper('POST', 'payment/checkout', {}, {}, {
+      delivery_address: deliveryAddress,
+      payment_method: paymentMethod,
+    });
+    setPlacing(false);
+
+    if (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Checkout failed',
+        text2:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.detail || 'Please try again.',
+      });
+      return;
+    }
+
+    dispatch(clearCart());
+    Toast.show({
+      type: 'success',
+      text1: 'Order placed',
+      text2: 'Your order has been placed successfully.',
+    });
+    navigation.navigate('OrderSuccess');
+  };
 
   return (
     <View style={styles.container}>
@@ -147,36 +317,61 @@ const Checkout = () => {
           Lorem Ipsum is simply dummy text of the printing and typesetting industry.
         </Text>
 
-        <View style={styles.orderItem}>
-          <Image source={images.Heel} style={styles.itemImage} />
-          <View style={styles.itemInfo}>
-            <View style={styles.itemTopRow}>
-              <Text style={styles.itemName}>Mapo Tofu</Text>
-              <TouchableOpacity activeOpacity={0.7}>
-                <Image source={images.Remove} style={styles.removeIcon} />
-              </TouchableOpacity>
+        {items.map(item => (
+          <View
+            key={`${item.productId}-${item.size}`}
+            style={[styles.orderItem, { marginBottom: height * 0.015 }]}
+          >
+            <Image source={item.image} style={styles.itemImage} />
+            <View style={styles.itemInfo}>
+              <View style={styles.itemTopRow}>
+                <Text style={styles.itemName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() =>
+                    dispatch(
+                      removeFromCart({
+                        productId: item.productId,
+                        size: item.size,
+                      }),
+                    )
+                  }
+                >
+                  <Image source={images.Remove} style={styles.removeIcon} />
+                </TouchableOpacity>
+              </View>
+              {item.description ? (
+                <Text style={styles.itemDesc} numberOfLines={1}>
+                  {item.description}
+                </Text>
+              ) : null}
+              <Text style={styles.itemStock}>
+                Size: {item.size}  •  Qty: {item.quantity}
+              </Text>
+              <Text style={styles.itemPrice}>{item.price}</Text>
             </View>
-            <Text style={styles.itemDesc} numberOfLines={1}>
-              Lorem Ipsum is simply dummy text...
-            </Text>
-            <Text style={styles.itemStock}>Only 5 Items in stock</Text>
-            <Text style={styles.itemPrice}>$12.56</Text>
           </View>
-        </View>
+        ))}
 
         {/* ORDER SUMMARY */}
         <Text style={[styles.sectionTitle, { marginTop: height * 0.03 }]}>Order Summary</Text>
 
         <View style={styles.summaryBox}>
-          {summaryRows.map(row => (
-            <View style={styles.summaryRow} key={row.label}>
-              <Text style={styles.summaryLabel}>{row.label}</Text>
-              <Text style={styles.summaryValue}>{row.value}</Text>
-            </View>
-          ))}
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Items Total</Text>
+            <Text style={styles.summaryValue}>
+              {currencyPrefix}
+              {formatAmount(itemsTotal)}
+            </Text>
+          </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryTotalLabel}>Total Payment</Text>
-            <Text style={styles.summaryTotalValue}>13.56</Text>
+            <Text style={styles.summaryTotalValue}>
+              {currencyPrefix}
+              {formatAmount(itemsTotal)}
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -185,35 +380,81 @@ const Checkout = () => {
       <View style={[styles.footer, { paddingBottom: insets.bottom + height * 0.02 }]}>
         <Text style={styles.paymentTitle}>Select Payment Method</Text>
 
-        <TouchableOpacity style={styles.paymentCard} activeOpacity={0.8}>
-          {/* Mastercard logo */}
-          <View style={styles.cardLogo}>
-            <View style={[styles.cardCircle, { backgroundColor: '#EB001B' }]} />
-            <View style={[styles.cardCircle, styles.cardCircleOverlap, { backgroundColor: '#F79E1B' }]} />
-          </View>
+        {/* Card / Cash choice */}
+        <View style={styles.methodRow}>
+          <TouchableOpacity
+            style={[
+              styles.methodChip,
+              paymentMethod === 'card' && styles.methodChipActive,
+            ]}
+            activeOpacity={0.85}
+            onPress={() => setPaymentMethod('card')}
+          >
+            <Text
+              style={[
+                styles.methodText,
+                paymentMethod === 'card' && styles.methodTextActive,
+              ]}
+            >
+              Card
+            </Text>
+          </TouchableOpacity>
 
-          <View style={styles.cardInfo}>
-            <Text style={styles.cardLabel}>Debit/Credit Card</Text>
-            <Text style={styles.cardNumber}>**** **** **** 1121</Text>
-          </View>
+          <TouchableOpacity
+            style={[
+              styles.methodChip,
+              paymentMethod === 'cash' && styles.methodChipActive,
+            ]}
+            activeOpacity={0.85}
+            onPress={() => setPaymentMethod('cash')}
+          >
+            <Text
+              style={[
+                styles.methodText,
+                paymentMethod === 'cash' && styles.methodTextActive,
+              ]}
+            >
+              Cash
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-          <Icon name="chevron-down" size={width * 0.06} color={colors.black} />
-        </TouchableOpacity>
+        {/* Card payments are collected securely by Stripe at checkout */}
+        {paymentMethod === 'card' && (
+          <View style={styles.paymentCard}>
+            <View style={styles.cardLogo}>
+              <View style={[styles.cardCircle, { backgroundColor: '#EB001B' }]} />
+              <View style={[styles.cardCircle, styles.cardCircleOverlap, { backgroundColor: '#F79E1B' }]} />
+            </View>
+
+            <View style={styles.cardInfo}>
+              <Text style={styles.cardLabel}>Pay with Card</Text>
+              <Text style={styles.cardNumberText}>
+                You'll enter your card securely via Stripe
+              </Text>
+            </View>
+
+            <Icon name="lock-closed" size={width * 0.05} color="#9E9E9E" />
+          </View>
+        )}
 
         <View style={styles.footerBottom}>
           <View>
-            <Text style={styles.totalItems}>Total 3 items</Text>
-            <Text style={styles.totalPrice}>$25.56</Text>
+            <Text style={styles.totalItems}>Total {totalQuantity} items</Text>
+            <Text style={styles.totalPrice}>
+              {currencyPrefix}
+              {formatAmount(itemsTotal)}
+            </Text>
           </View>
           <CustomButton
-            text="Place Order"
+            text={placing ? 'Placing...' : 'Place Order'}
             textColor={colors.white}
             backgroundColor={colors.lightbrown}
             borderRadius={20}
             btnWidth={width * 0.42}
             btnHeight={height * 0.07}
             fontSize={fontSizes.md}
-            onPress={() => navigation.navigate('OrderSuccess')}
+            onPress={handlePlaceOrder}
           />
         </View>
       </View>
@@ -447,7 +688,7 @@ const styles = StyleSheet.create({
   },
   paymentTitle: {
     fontFamily: fontFamily.UrbanistExtraBold,
-    fontSize: fontSizes.lg2,
+    fontSize: fontSizes.lg,
     color: colors.black,
     marginBottom: height * 0.018,
   },
@@ -483,12 +724,43 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.black,
   },
-  cardNumber: {
+  cardNumberText: {
     fontFamily: fontFamily.UrbanistMedium,
     fontSize: fontSizes.sm2,
     color: '#9E9E9E',
     letterSpacing: 2,
     marginTop: height * 0.004,
+  },
+
+  // Card / Cash method chips
+  methodRow: {
+    flexDirection: 'row',
+    marginBottom: height * 0.02,
+  },
+  methodChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: width * 0.02,
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    paddingVertical: height * 0.016,
+    borderWidth: 1.5,
+    borderColor: '#E4E4E4',
+    marginRight: width * 0.04,
+  },
+  methodChipActive: {
+    backgroundColor: colors.lightbrown,
+    borderColor: colors.lightbrown,
+  },
+  methodText: {
+    fontFamily: fontFamily.UrbanistBold,
+    fontSize: fontSizes.md,
+    color: colors.black,
+  },
+  methodTextActive: {
+    color: colors.white,
   },
   footerBottom: {
     flexDirection: 'row',

@@ -45,6 +45,7 @@ const images: { [key: string]: ImageSourcePropType } = {
   calender: require('../Images/calender.png'),
   Stars: require('../Images/Stars.png'),
   map: require('../Images/map.png'),
+  HeartFilled: require('../Images/HeartFilled.png'),
 };
 
 export default images;
