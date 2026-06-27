@@ -1,13 +1,16 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { useState } from 'react';
 import {
   FlatList,
   Image,
+  ImageBackground,
+  ImageSourcePropType,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { fontFamily } from '../assets/Fonts';
@@ -16,32 +19,93 @@ import TopHeader from '../components/Topheader';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
-import { useState } from 'react';
+import CustomTextInput from '../components/CustomTextInput';
+
+type Product = {
+  id: string;
+  name: string;
+  price: string;
+  oldPrice?: string;
+  discount?: string;
+  rating?: string;
+  image: ImageSourcePropType;
+  isFavorite: boolean;
+};
+
+const CATEGORIES = ['All', 'Dresses', 'Coats', 'Shoes', 'Bags'];
+
+const INITIAL_PRODUCTS: Product[] = [
+  { id: '1', name: 'Women Jute Coat', price: '$299', oldPrice: '$349', discount: '15%', rating: '4.8', image: images.Onboarding, isFavorite: false },
+  { id: '2', name: 'Satchel Dress', price: '$199', rating: '4.6', image: images.product2, isFavorite: true },
+  { id: '3', name: 'Summer Dress', price: '$159', oldPrice: '$189', discount: '20%', rating: '4.9', image: images.product3, isFavorite: false },
+  { id: '4', name: 'Party Dress', price: '$129', rating: '4.7', image: images.product4, isFavorite: true },
+  { id: '5', name: 'Classic Heels', price: '$89', rating: '4.5', image: images.product5, isFavorite: false },
+  { id: '6', name: 'Casual Bag', price: '$75', oldPrice: '$95', discount: '21%', rating: '4.8', image: images.product6, isFavorite: false },
+];
 
 const Home = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
 
-  const products = [
-    { id: '1', name: 'Womwn Joot Coats', price: '$299', image: images.Onboarding, isFavorite: false },
-    { id: '2', name: 'Satchel Dress', price: '$199', image: images.product2, isFavorite: true },
-    { id: '3', name: 'Summer Dress', price: '$159', image: images.product3, isFavorite: false },
-    { id: '4', name: 'Party Dresses', price: '$129', image: images.product4, isFavorite: true },
-  ];
+  const toggleFavorite = (id: string) => {
+    setProducts(prev =>
+      prev.map(p => (p.id === id ? { ...p, isFavorite: !p.isFavorite } : p)),
+    );
+  };
 
-  const renderProductItem = ({ item }) => (
-    <TouchableOpacity style={styles.productCard}>
+  const openProduct = (item: Product) => {
+    navigation.navigate('ProductDetails', {
+      image: item.image,
+      title: item.name,
+      price: item.price,
+      productId: item.id,
+    });
+  };
+
+  const renderProductItem = ({ item }: { item: Product }) => (
+    <TouchableOpacity
+      style={styles.productCard}
+      activeOpacity={0.9}
+      onPress={() => openProduct(item)}
+    >
       <View style={styles.productImageContainer}>
         <Image source={item.image} style={styles.productImage} />
-        <TouchableOpacity style={styles.heartButton}>
+
+        {!!item.discount && (
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>-{item.discount}</Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={styles.heartButton}
+          onPress={() => toggleFavorite(item.id)}
+          activeOpacity={0.8}
+        >
           <Image
-            source={item.isFavorite ? images.heartFilled : images.heartOutline}
+            source={item.isFavorite ? images.HeartFilled : images.Heart}
             style={styles.heartIcon}
           />
         </TouchableOpacity>
       </View>
-      <Text style={styles.productName}>{item.name}</Text>
-      <Text style={styles.productPrice}>{item.price}</Text>
+
+      <Text style={styles.productName} numberOfLines={1}>
+        {item.name}
+      </Text>
+
+      <View style={styles.ratingRow}>
+        <Image source={images.Stars} style={{ width: 12, height: 12 }} />
+        <Text style={styles.ratingText}>{item.rating}</Text>
+      </View>
+
+      <View style={styles.priceRow}>
+        <Text style={styles.productPrice}>{item.price}</Text>
+        {!!item.oldPrice && (
+          <Text style={styles.oldPrice}>{item.oldPrice}</Text>
+        )}
+      </View>
     </TouchableOpacity>
   );
 
@@ -52,20 +116,68 @@ const Home = () => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Welcome */}
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeText}>Hello, Jaydon</Text>
-          <Text style={styles.summaryText}>Today's Summary</Text>
+          <Text style={styles.welcomeText}>Hello, Jaydon 👋</Text>
+          <Text style={styles.summaryText}>Find your perfect style</Text>
         </View>
 
-        {/* SEARCH BAR */}
+        {/* SEARCH BAR + FILTER */}
         <View style={styles.searchContainer}>
-          <Icon name="search-outline" size={20} color="#9E9E9E" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search"
-            placeholderTextColor="#9E9E9E"
+          <CustomTextInput
+            placeholder="Search for products"
+            placeholderTextColor={colors.black}
+            inputHeight={height * 0.06}
+            inputWidth={width * 0.85}
+            borderRadius={25}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
+        </View>
+
+        {/* PROMO BANNER */}
+        <ImageBackground
+          source={images.homeslider}
+          style={styles.banner}
+          imageStyle={styles.bannerImage}
+        >
+          <View style={styles.bannerOverlay}>
+            <Text style={styles.bannerBadge}>Limited time</Text>
+            <Text style={styles.bannerTitle}>New Collection</Text>
+            <Text style={styles.bannerSubtitle}>Up to 40% off this week</Text>
+            <TouchableOpacity style={styles.bannerButton} activeOpacity={0.85}>
+              <Text style={styles.bannerButtonText}>Shop Now</Text>
+            </TouchableOpacity>
+          </View>
+        </ImageBackground>
+
+        {/* CATEGORY CHIPS */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryRow}
+        >
+          {CATEGORIES.map(cat => {
+            const active = cat === activeCategory;
+            return (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.chip, active && styles.chipActive]}
+                activeOpacity={0.85}
+                onPress={() => setActiveCategory(cat)}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* SECTION HEADER */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Popular</Text>
+          <TouchableOpacity activeOpacity={0.7}>
+            <Text style={styles.seeAllText}>See all</Text>
+          </TouchableOpacity>
         </View>
 
         {/* PRODUCTS */}
@@ -73,7 +185,7 @@ const Home = () => {
           <FlatList
             data={products}
             renderItem={renderProductItem}
-            keyExtractor={(item) => item.id}
+            keyExtractor={item => item.id}
             numColumns={2}
             scrollEnabled={false}
             columnWrapperStyle={styles.productsRow}
@@ -85,44 +197,31 @@ const Home = () => {
 };
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
   welcomeSection: {
     paddingHorizontal: width * 0.05,
-    marginTop: height * 0.02,
-    marginBottom: height * 0.01,
+    marginTop: height * 0.01,
+    marginBottom: height * 0.005,
   },
   welcomeText: {
     fontFamily: fontFamily.UrbanistSemiBold,
-    fontSize: fontSizes.xl,
-    color: colors.black,
+    fontSize: fontSizes.md,
+    color: '#8A8A8A',
   },
   summaryText: {
     fontFamily: fontFamily.UrbanistExtraBold,
     fontSize: fontSizes.lg2,
     color: colors.black,
-    marginTop: 5,
+    marginTop: 2,
   },
 
-  searchContainer: {
+  // Search
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
     marginHorizontal: width * 0.05,
     marginTop: height * 0.015,
-    marginBottom: height * 0.03,
-    paddingHorizontal: width * 0.04,
-    height: height * 0.06,
-    borderRadius: 12,
-    shadowColor: colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: height * 0.02,
+    gap: width * 0.03,
   },
   searchIcon: {
     marginRight: width * 0.025,
@@ -134,16 +233,115 @@ const styles = StyleSheet.create({
     color: colors.black,
     padding: 0,
   },
-  // Products Section
-  productsSection: {
-    paddingHorizontal: width * 0.05,
-    marginBottom: height * 0.02,
+  filterButton: {
+    width: height * 0.06,
+    height: height * 0.06,
+    borderRadius: 14,
+    backgroundColor: colors.lightbrown,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.lightbrown,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
+
+  // Banner
+  banner: {
+    marginHorizontal: width * 0.05,
+    height: height * 0.2,
+    borderRadius: 20,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  bannerImage: {
+    borderRadius: 20,
+    resizeMode: 'cover',
+  },
+  bannerOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: width * 0.06,
+    backgroundColor: 'rgba(74, 52, 51, 0.35)',
+  },
+  bannerBadge: {
+    alignSelf: 'flex-start',
+    fontFamily: fontFamily.UrbanistBold,
+    fontSize: fontSizes.xsm,
+    color: colors.white,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: width * 0.03,
+    paddingVertical: 4,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: height * 0.01,
+  },
+  bannerTitle: {
+    fontFamily: fontFamily.UrbanistExtraBold,
+    fontSize: fontSizes.xl,
+    color: colors.white,
+  },
+  bannerSubtitle: {
+    fontFamily: fontFamily.UrbanistMedium,
+    fontSize: fontSizes.sm,
+    color: colors.white,
+    marginBottom: height * 0.015,
+  },
+  bannerButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.white,
+    paddingHorizontal: width * 0.06,
+    paddingVertical: height * 0.01,
+    borderRadius: 20,
+  },
+  bannerButtonText: {
+    fontFamily: fontFamily.UrbanistBold,
+    fontSize: fontSizes.sm,
+    color: colors.brown,
+  },
+  searchContainer: {
+    alignItems: 'center',
+    marginTop: height * 0.01,
+    marginBottom: height * 0.025,
+    width: width * 0.99,
+    height: height * 0.065,
+  },
+
+  // Categories
+  categoryRow: {
+    paddingHorizontal: width * 0.05,
+    paddingVertical: height * 0.02,
+    gap: width * 0.025,
+  },
+  chip: {
+    paddingHorizontal: width * 0.05,
+    paddingVertical: height * 0.011,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.borderGray,
+  },
+  chipActive: {
+    backgroundColor: colors.lightbrown,
+    borderColor: colors.lightbrown,
+  },
+  chipText: {
+    fontFamily: fontFamily.UrbanistSemiBold,
+    fontSize: fontSizes.sm,
+    color: '#6B6B6B',
+  },
+  chipTextActive: {
+    color: colors.white,
+  },
+
+  // Section header
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: height * 0.02,
+    paddingHorizontal: width * 0.05,
+    marginBottom: height * 0.015,
   },
   sectionTitle: {
     fontFamily: fontFamily.UrbanistExtraBold,
@@ -151,12 +349,15 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
   seeAllText: {
-    fontFamily: fontFamily.UrbanistMedium,
+    fontFamily: fontFamily.UrbanistSemiBold,
     fontSize: fontSizes.sm,
     color: colors.marhoon,
   },
-  productsGrid: {
-    paddingBottom: height * 0.01,
+
+  // Products
+  productsSection: {
+    paddingHorizontal: width * 0.05,
+    marginBottom: height * 0.02,
   },
   productsRow: {
     justifyContent: 'space-between',
@@ -165,15 +366,12 @@ const styles = StyleSheet.create({
   productCard: {
     width: width * 0.43,
     backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 18,
+    padding: 10,
     shadowColor: colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
   },
   productImageContainer: {
@@ -182,89 +380,73 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: '100%',
-    height: height * 0.12,
+    height: height * 0.16,
     resizeMode: 'cover',
-    borderRadius: 8,
+    borderRadius: 14,
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: colors.marhoon,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  discountText: {
+    fontFamily: fontFamily.UrbanistBold,
+    fontSize: fontSizes.xsm,
+    color: colors.white,
   },
   heartButton: {
     position: 'absolute',
-    top: 5,
-    right: 5,
-    padding: 5,
+    top: 8,
+    right: 8,
+    width: width * 0.08,
+    height: width * 0.08,
+    borderRadius: width * 0.04,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   heartIcon: {
-    width: 20,
-    height: 20,
+    width: 16,
+    height: 16,
     resizeMode: 'contain',
   },
   productName: {
-    fontFamily: fontFamily.UrbanistSemiBold,
-    fontSize: fontSizes.sm,
-    color: colors.black,
-    marginBottom: 4,
-  },
-  productPrice: {
-    fontFamily: fontFamily.UrbanistBold,
-    fontSize: fontSizes.sm,
-    color: colors.marhoon,
-  },
-  // Tools Section
-  toolsSection: {
-    backgroundColor: colors.white,
-    marginHorizontal: width * 0.05,
-    borderRadius: 18,
-    paddingHorizontal: width * 0.04,
-    paddingVertical: height * 0.02,
-    marginBottom: height * 0.05,
-    shadowColor: colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  toolsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: height * 0.01,
-  },
-  toolsTitle: {
     fontFamily: fontFamily.UrbanistBold,
     fontSize: fontSizes.sm2,
     color: colors.black,
+    marginBottom: 4,
   },
-  toolsHeartIcon: {
-    width: 24,
-    height: 24,
-    resizeMode: 'contain',
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
   },
-  toolsSubtitle: {
-    fontFamily: fontFamily.UrbanistBold,
-    fontSize: fontSizes.lg,
-    color: colors.black,
-    marginLeft: width * 0.05,
-    marginBottom: height * 0.03,
+  ratingText: {
+    fontFamily: fontFamily.UrbanistMedium,
+    fontSize: fontSizes.xsm,
+    color: '#8A8A8A',
   },
-  startButtonContainer: {
-    marginLeft: width * 0.05,
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: width * 0.02,
   },
-  startButton: {
-    backgroundColor: colors.marhoon,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 30,
-    width: width * 0.35,
-  },
-  startButtonText: {
-    fontFamily: fontFamily.GilroyMedium,
+  productPrice: {
+    fontFamily: fontFamily.UrbanistExtraBold,
     fontSize: fontSizes.md,
-    color: colors.white,
+    color: colors.marhoon,
   },
-  image:{
-    alignSelf: 'center'
-  }
+  oldPrice: {
+    fontFamily: fontFamily.UrbanistMedium,
+    fontSize: fontSizes.xsm,
+    color: '#B0B0B0',
+    textDecorationLine: 'line-through',
+  },
 });
+
 export default Home;

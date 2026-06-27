@@ -83,6 +83,10 @@ const Checkout = () => {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash'>('card');
   const [placing, setPlacing] = useState(false);
 
+  const cards = useAppSelector(state => state.payment.cards);
+  const selectedCardId = useAppSelector(state => state.payment.selectedCardId);
+  const selectedCard = cards.find(c => c.id === selectedCardId) ?? null;
+
   useEffect(() => {
     if (route.params?.address) {
       setAddress(route.params.address);
@@ -419,23 +423,36 @@ const Checkout = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Card payments are collected securely by Stripe at checkout */}
+        {/* Selected card from Payment Methods (charged securely via Stripe) */}
         {paymentMethod === 'card' && (
-          <View style={styles.paymentCard}>
+          <TouchableOpacity
+            style={styles.paymentCard}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('PaymentMethods')}
+          >
             <View style={styles.cardLogo}>
               <View style={[styles.cardCircle, { backgroundColor: '#EB001B' }]} />
               <View style={[styles.cardCircle, styles.cardCircleOverlap, { backgroundColor: '#F79E1B' }]} />
             </View>
 
             <View style={styles.cardInfo}>
-              <Text style={styles.cardLabel}>Pay with Card</Text>
-              <Text style={styles.cardNumberText}>
-                You'll enter your card securely via Stripe
-              </Text>
+              {selectedCard ? (
+                <>
+                  <Text style={styles.cardLabel}>{selectedCard.name}</Text>
+                  <Text style={styles.cardNumberText}>
+                    **** **** **** {selectedCard.last4}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.cardLabel}>Add Payment Method</Text>
+                  <Text style={styles.cardNumberText}>No card selected</Text>
+                </>
+              )}
             </View>
 
-            <Icon name="lock-closed" size={width * 0.05} color="#9E9E9E" />
-          </View>
+            <Icon name="chevron-forward" size={width * 0.06} color={colors.black} />
+          </TouchableOpacity>
         )}
 
         <View style={styles.footerBottom}>

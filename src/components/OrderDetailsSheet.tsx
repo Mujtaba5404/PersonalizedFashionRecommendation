@@ -21,11 +21,34 @@ const GREEN = '#4CAF50';
 
 type OrderVariant = 'pickup' | 'delivery';
 
+interface OrderInfo {
+  id: number;
+  status: string;
+  createdAt: string;
+  deliveryAddress: string;
+}
+
 interface OrderDetailsSheetProps {
   visible: boolean;
   onClose: () => void;
   variant?: OrderVariant;
+  order?: OrderInfo | null;
+  onDeliver?: () => void;
+  onHelp?: () => void;
+  delivering?: boolean;
 }
+
+// Formats an ISO date like "2026-06-27T07:19:27" -> "27 Jun, 2026".
+const formatDate = (iso?: string): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return `${d.getDate()} ${months[d.getMonth()]}, ${d.getFullYear()}`;
+};
 
 const SummaryRow = ({
   label,
@@ -50,11 +73,15 @@ const OrderDetailsSheet: React.FC<OrderDetailsSheetProps> = ({
   visible,
   onClose,
   variant = 'pickup',
+  order,
+  onDeliver,
+  onHelp,
+  delivering = false,
 }) => {
   const isDelivery = variant === 'delivery';
 
   const HelpButton = () => (
-    <TouchableOpacity style={styles.helpButton} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.helpButton} activeOpacity={0.8} onPress={onHelp}>
       <View style={styles.helpIcon}>
         <Text style={styles.helpQ}>?</Text>
       </View>
@@ -82,7 +109,7 @@ const OrderDetailsSheet: React.FC<OrderDetailsSheetProps> = ({
             <View style={styles.steps}>
               <View style={styles.step}>
                 <View style={[styles.stepCircle, { backgroundColor: ACTIVE }]}>
-                  <Icon name="checkmark" size={width * 0.055} color={colors.white} />
+                  <Image source={images.Confirmed} style={{ width: '60%', height: '60%' }} />
                 </View>
                 <Text style={[styles.stepLabel, { color: ACTIVE }]}>Confirmed</Text>
               </View>
@@ -91,7 +118,7 @@ const OrderDetailsSheet: React.FC<OrderDetailsSheetProps> = ({
 
               <View style={styles.step}>
                 <View style={[styles.stepCircle, { backgroundColor: ACTIVE }]}>
-                  <Icon name="bicycle" size={width * 0.055} color={colors.white} />
+                  <Image source={images.preparing} style={{ width: '60%', height: '60%' }} />
                 </View>
                 <Text style={[styles.stepLabel, { color: ACTIVE }]}>Preparing</Text>
               </View>
@@ -105,7 +132,7 @@ const OrderDetailsSheet: React.FC<OrderDetailsSheetProps> = ({
                     styles.stepCircleDone,
                   ]}
                 >
-                  <Icon name="checkmark" size={width * 0.055} color={GREEN} />
+                  <Image source={images.Completed} style={{ width: '60%', height: '60%' }} />
                 </View>
                 <Text style={[styles.stepLabel, { color: GREEN }]}>
                   {isDelivery ? 'Arrived' : 'Completed'}
@@ -113,23 +140,34 @@ const OrderDetailsSheet: React.FC<OrderDetailsSheetProps> = ({
               </View>
             </View>
 
-            {/* Title (+ Help for pickup) */}
+            {/* Title (+ Deliver action for pickup/pending orders) */}
             <View style={styles.titleRow}>
               <Text style={styles.title}>Order Details</Text>
-              {!isDelivery && <HelpButton />}
+              {!isDelivery && (
+                <TouchableOpacity
+                  style={styles.deliverButton}
+                  activeOpacity={0.85}
+                  disabled={delivering}
+                  onPress={onDeliver}
+                >
+                  <Text style={styles.deliverText}>
+                    {delivering ? 'Delivering...' : 'Deliver'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Order id + status */}
             <View style={styles.idRow}>
-              <Text style={styles.orderId}>#1245325</Text>
+              <Text style={styles.orderId}>#{order?.id ?? '—'}</Text>
               <View style={styles.statusBadge}>
                 <Text style={styles.statusBadgeText}>
-                  {isDelivery ? 'Delivery' : 'Pickup'}
+                  {order?.status || (isDelivery ? 'Delivery' : 'Pickup')}
                 </Text>
               </View>
             </View>
 
-            <Text style={styles.date}>26 OCT, 2023</Text>
+            <Text style={styles.date}>{formatDate(order?.createdAt)}</Text>
 
             {isDelivery ? (
               <>
@@ -140,7 +178,7 @@ const OrderDetailsSheet: React.FC<OrderDetailsSheetProps> = ({
                       <Icon name="location" size={width * 0.045} color={colors.white} />
                     </View>
                     <Text style={styles.inlineAddress}>
-                      House # 73 New York, NY 10007, USA
+                      {order?.deliveryAddress || 'No address provided'}
                     </Text>
                   </View>
                   <HelpButton />
@@ -150,20 +188,10 @@ const OrderDetailsSheet: React.FC<OrderDetailsSheetProps> = ({
                 <View style={styles.restaurantRow}>
                   <View style={styles.restaurantInfo}>
                     <Text style={styles.restaurantName}>Panda Express</Text>
-                    <Icon
-                      name="information-circle-outline"
-                      size={width * 0.05}
-                      color={colors.black}
-                    />
                   </View>
 
                   <TouchableOpacity style={styles.phoneButton} activeOpacity={0.85}>
                     <Text style={styles.phoneText}>(917) 365-2318</Text>
-                    <Icon
-                      name="chatbubble-ellipses"
-                      size={width * 0.045}
-                      color={colors.white}
-                    />
                   </TouchableOpacity>
                 </View>
               </>
@@ -175,9 +203,9 @@ const OrderDetailsSheet: React.FC<OrderDetailsSheetProps> = ({
                 </View>
 
                 <View style={styles.locationInfo}>
-                  <Text style={styles.locationTitle}>Pickup Location</Text>
+                  <Text style={styles.locationTitle}>Delivery Address</Text>
                   <Text style={styles.locationAddress}>
-                    House # 73 New York, NY 10007, USA
+                    {order?.deliveryAddress || 'No address provided'}
                   </Text>
                 </View>
 
@@ -301,6 +329,17 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontFamily: fontFamily.UrbanistSemiBold,
     fontSize: fontSizes.md,
+  },
+  deliverButton: {
+    backgroundColor: ACTIVE,
+    borderRadius: 30,
+    paddingVertical: height * 0.004,
+    paddingHorizontal: width * 0.04,
+  },
+  deliverText: {
+    color: colors.white,
+    fontFamily: fontFamily.UrbanistSemiBold,
+    fontSize: fontSizes.sm2,
   },
 
   // Order id

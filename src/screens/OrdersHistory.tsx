@@ -1,7 +1,12 @@
-import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import {
+  NavigationProp,
+  useFocusEffect,
+  useNavigation,
+} from '@react-navigation/native';
+import { useCallback, useState } from 'react';
 import { ImageSourcePropType } from 'react-native';
 import {
+  ActivityIndicator,
   Image,
   ImageBackground,
   Modal,
@@ -12,10 +17,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import TopHeader from '../components/Topheader';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -24,6 +31,7 @@ type Order = {
   id: number;
   image: ImageSourcePropType;
   title: string;
+  brandName: string;
   status: string;
   qty: number;
   deliveryDate: string;
@@ -36,29 +44,82 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const ordersData: Order[] = [
-  {
-    id: 1,
-    image: images.product1,
-    title: 'Dummy Text',
-    status: 'Delivered',
-    qty: 1,
-    deliveryDate: '25 Oct',
-    price: '$12.56',
-  },
-  {
-    id: 2,
-    image: images.product2,
-    title: 'Dummy Text',
-    status: 'Delivered',
-    qty: 1,
-    deliveryDate: '25 Oct',
-    price: '$12.56',
-  },
-];
+// Formats an ISO date like "2026-06-27T07:19:27" -> "27 Jun".
+const formatShortDate = (iso?: string): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
+};
+
+// Maps a raw /payment/my-orders item to the UI's Order shape.
+const mapOrder = (raw: any, index: number): Order => {
+  const imageUrl = String(raw?.image_url || raw?.image || '');
+  const isRemote = /^https?:\/\//i.test(imageUrl);
+  const price = raw?.price ?? raw?.total_amount ?? raw?.total;
+
+  return {
+    id: Number(raw?.id ?? raw?.order_id ?? index),
+    image: isRemote ? { uri: imageUrl } : images.product1,
+    title: raw?.product_name || raw?.title || raw?.name || 'Order',
+    brandName:
+      raw?.brand_name ||
+      raw?.brand ||
+      raw?.store_name ||
+      raw?.product_name ||
+      raw?.title ||
+      'Order',
+    status: raw?.status || raw?.order_status || 'Delivered',
+    qty: Number(raw?.quantity ?? raw?.qty ?? raw?.items?.length ?? 1),
+    deliveryDate: formatShortDate(raw?.created_at || raw?.delivery_date),
+    price: price != null ? `Rs. ${price}` : '',
+  };
+};
 
 const OrdersHistory = () => {
   const navigation = useNavigation<NavigationProp<any>>();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    const { response, error } = await apiHelper('GET', 'payment/my-orders', {
+      status: 'delivered',
+    });
+    setLoading(false);
+
+    if (error) {
+      setOrders([]);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to load history',
+        text2:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.detail || 'Please try again.',
+      });
+      return;
+    }
+
+    const data = response?.data;
+    const list: any[] = Array.isArray(data)
+      ? data
+      : data?.results || data?.orders || data?.data || [];
+
+    setOrders(list.map(mapOrder));
+
+    Toast.show({
+      type: 'success',
+      text1: 'Success',
+      text2: 'Order history fetched successfully.',
+    });
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [fetchOrders]),
+  );
 
   const today = new Date();
   const [calendarVisible, setCalendarVisible] = useState(false);
@@ -141,7 +202,15 @@ const OrdersHistory = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {ordersData.map(order => (
+        {loading && (
+          <ActivityIndicator
+            size="large"
+            color={colors.lightbrown}
+            style={styles.loader}
+          />
+        )}
+
+        {orders.map(order => (
           <View key={order.id} style={styles.card}>
             <View style={styles.cardTop}>
               <Image source={order.image} style={styles.productImage} />
@@ -165,7 +234,11 @@ const OrdersHistory = () => {
             <TouchableOpacity
               style={styles.reviewButton}
               activeOpacity={0.85}
-              onPress={() => navigation.navigate('WriteReview')}
+              onPress={() =>
+                navigation.navigate('WriteReview', {
+                  brandName: order.brandName,
+                })
+              }
             >
               <Text style={styles.reviewButtonText}>Write a review</Text>
             </TouchableOpacity>
@@ -307,6 +380,9 @@ const styles = StyleSheet.create({
   },
 
   // List
+  loader: {
+    marginTop: height * 0.3,
+  },
   scrollView: {
     flex: 1,
     backgroundColor: 'transparent',

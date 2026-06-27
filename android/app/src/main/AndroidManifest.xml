@@ -14,6 +14,15 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
+    <!-- Allow canOpenURL/Linking to detect the Gmail app and mail clients (Android 11+ package visibility) -->
+    <queries>
+        <package android:name="com.google.android.gm" />
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+    </queries>
+
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"

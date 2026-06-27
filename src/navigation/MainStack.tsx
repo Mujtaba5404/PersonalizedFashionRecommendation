@@ -34,6 +34,7 @@ import WriteReview from '../screens/WriteReview';
 import PaymentMethods from '../screens/PaymentMethods';
 import MyOrders from '../screens/MyOrders';
 import CategoryProducts from '../screens/CategoryProducts';
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 export type MainStackParamList = {
   Splash: undefined;
@@ -77,9 +78,10 @@ export type MainStackParamList = {
   FAQS: undefined;
   CustomerSupport: undefined;
   OrdersHistory: undefined;
-  WriteReview: undefined;
+  WriteReview: { brandName?: string } | undefined;
   PaymentMethods: undefined;
   MyOrders: undefined;
+  NotificationsScreen: undefined;
   CategoryProducts: {
     category: string;
     categoryName: string;
@@ -122,6 +124,7 @@ const MainStack = () => {
       <Stack.Screen name="WriteReview" component={WriteReview} />
       <Stack.Screen name="PaymentMethods" component={PaymentMethods} />
       <Stack.Screen name="MyOrders" component={MyOrders} />
+      <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
       <Stack.Screen name="CategoryProducts" component={CategoryProducts} />
     </Stack.Navigator>
   );

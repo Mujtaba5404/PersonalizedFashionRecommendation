@@ -1,4 +1,8 @@
-import { useFocusEffect } from '@react-navigation/native';
+import {
+  NavigationProp,
+  useFocusEffect,
+  useNavigation,
+} from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import { ImageSourcePropType } from 'react-native';
 import {
@@ -31,6 +35,8 @@ type Order = {
   qty: number;
   deliveryDate: string;
   price: string;
+  createdAt: string;
+  deliveryAddress: string;
 };
 
 // Maps a raw /payment/my-orders item to the UI's Order shape, tolerating the
@@ -45,17 +51,22 @@ const mapOrder = (raw: any, index: number): Order => {
     image: isRemote ? { uri: imageUrl } : images.Heel,
     title: raw?.product_name || raw?.title || raw?.name || 'Order',
     status: raw?.status || raw?.order_status || '',
-    qty: Number(raw?.quantity ?? raw?.qty ?? 1),
+    qty: Number(raw?.quantity ?? raw?.qty ?? raw?.items?.length ?? 1),
     deliveryDate: raw?.delivery_date || raw?.deliveryDate || '',
     price: price != null ? `Rs. ${price}` : '',
+    createdAt: raw?.created_at || raw?.createdAt || '',
+    deliveryAddress: raw?.delivery_address || raw?.deliveryAddress || '',
   };
 };
 
 const MyOrders = () => {
+  const navigation = useNavigation<NavigationProp<any>>();
   const [activeTab, setActiveTab] = useState<OrderTab>('Pending');
   const [detailsVisible, setDetailsVisible] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
+  const [delivering, setDelivering] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -78,11 +89,18 @@ const MyOrders = () => {
     }
 
     const data = response?.data;
+    console.log('Fetched orders:', data);
     const list: any[] = Array.isArray(data)
       ? data
       : data?.results || data?.orders || data?.data || [];
 
     setOrders(list.map(mapOrder));
+
+    Toast.show({
+      type: 'success',
+      text1: 'Success',
+      text2: 'Orders fetched successfully.',
+    });
   }, [activeTab]);
 
   // Refetch on focus and whenever the active tab (status filter) changes.
@@ -91,6 +109,38 @@ const MyOrders = () => {
       fetchOrders();
     }, [fetchOrders]),
   );
+
+  const markDelivered = async () => {
+    if (delivering || !selectedOrder) return;
+
+    setDelivering(true);
+    const { response, error } = await apiHelper(
+      'PUT',
+      `payment/${selectedOrder.id}/status`,
+      { new_status: 'Delivered' },
+    );
+    setDelivering(false);
+
+    if (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to update order',
+        text2:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.detail || 'Please try again.',
+      });
+      return;
+    }
+
+    setDetailsVisible(false);
+    Toast.show({
+      type: 'success',
+      text1: 'Success',
+      text2: response?.data?.message || 'Order status changed to Delivered.',
+    });
+    fetchOrders();
+  };
 
   return (
     <ImageBackground
@@ -135,34 +185,43 @@ const MyOrders = () => {
         ) : (
           orders.map(order => (
             <View key={order.id} style={styles.card}>
-            <View style={styles.cardTop}>
-              <Image source={order.image} style={styles.productImage} />
+              <View style={styles.cardTop}>
+                <Image source={order.image} style={styles.productImage} />
 
-              <View style={styles.cardInfo}>
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusBadgeText}>
-                    Order Status: {order.status}
+                <View style={styles.cardInfo}>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      order.status.toLowerCase() === 'delivered' &&
+                        styles.statusBadgeDelivered,
+                    ]}
+                  >
+                    <Text style={styles.statusBadgeText}>
+                      Order Status: {order.status}
+                    </Text>
+                  </View>
+                  <Text style={styles.productTitle}>{order.title}</Text>
+                  <Text style={styles.metaText}>Qty: {order.qty}</Text>
+                  <Text style={styles.metaText}>
+                    Delivery date:{' '}
+                    <Text style={styles.deliveryDate}>{order.deliveryDate}</Text>
                   </Text>
                 </View>
-                <Text style={styles.productTitle}>{order.title}</Text>
-                <Text style={styles.metaText}>Qty: {order.qty}</Text>
-                <Text style={styles.metaText}>
-                  Delivery date:{' '}
-                  <Text style={styles.deliveryDate}>{order.deliveryDate}</Text>
-                </Text>
+
+                <Text style={styles.price}>{order.price}</Text>
               </View>
 
-              <Text style={styles.price}>{order.price}</Text>
+              <TouchableOpacity
+                style={styles.detailsButton}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setSelectedOrder(order);
+                  setDetailsVisible(true);
+                }}
+              >
+                <Text style={styles.detailsButtonText}>Order Details</Text>
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={styles.detailsButton}
-              activeOpacity={0.85}
-              onPress={() => setDetailsVisible(true)}
-            >
-              <Text style={styles.detailsButtonText}>Order Details</Text>
-            </TouchableOpacity>
-          </View>
           ))
         )}
       </ScrollView>
@@ -171,6 +230,13 @@ const MyOrders = () => {
         visible={detailsVisible}
         onClose={() => setDetailsVisible(false)}
         variant={activeTab === 'Delivered' ? 'delivery' : 'pickup'}
+        order={selectedOrder}
+        delivering={delivering}
+        onDeliver={markDelivered}
+        onHelp={() => {
+          setDetailsVisible(false);
+          navigation.navigate('CustomerSupport');
+        }}
       />
     </ImageBackground>
   );
@@ -253,6 +319,9 @@ const styles = StyleSheet.create({
     paddingVertical: height * 0.005,
     paddingHorizontal: width * 0.03,
     marginBottom: height * 0.008,
+  },
+  statusBadgeDelivered: {
+    backgroundColor: '#4CAF50',
   },
   statusBadgeText: {
     fontFamily: fontFamily.UrbanistBold,

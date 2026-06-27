@@ -46,6 +46,12 @@ const images: { [key: string]: ImageSourcePropType } = {
   Stars: require('../Images/Stars.png'),
   map: require('../Images/map.png'),
   HeartFilled: require('../Images/HeartFilled.png'),
+  cartIcon: require('../Images/cartIcon.png'),
+  Confirmed: require('../Images/Confirmed.png'),
+  preparing: require('../Images/preparing.png'),
+  Completed: require('../Images/Completed.png'),
+  notification: require('../Images/notification.png'),
+  Logout: require('../Images/Logout.png'),
 };
 
 export default images;

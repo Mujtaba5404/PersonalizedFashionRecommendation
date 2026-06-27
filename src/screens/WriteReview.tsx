@@ -1,4 +1,9 @@
-import { NavigationProp, useNavigation } from '@react-navigation/native';
+import {
+  NavigationProp,
+  RouteProp,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import { useState } from 'react';
 import {
   Image,
@@ -6,13 +11,14 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import StarRating from 'react-native-star-rating-widget';
+import Toast from 'react-native-toast-message';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import TopHeader from '../components/Topheader';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -20,14 +26,57 @@ import CustomButton from '../components/CustomButton';
 
 const STAR_COLOR = '#F7941D';
 
+type WriteReviewParams = {
+  WriteReview: { brandName?: string } | undefined;
+};
+
 const WriteReview = () => {
   const navigation = useNavigation<NavigationProp<any>>();
+  const route = useRoute<RouteProp<WriteReviewParams, 'WriteReview'>>();
+
+  const brandName = route.params?.brandName || 'Khaaddi';
 
   const [rating, setRating] = useState(4);
   const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    // TODO: hook up to review submission API
+  const handleSubmit = async () => {
+    if (submitting) return;
+
+    if (rating < 1) {
+      Toast.show({
+        type: 'error',
+        text1: 'Rating required',
+        text2: 'Please select a star rating.',
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    const { error } = await apiHelper('POST', 'payment/submit-review', {}, {}, {
+      brand_name: brandName,
+      rating,
+      comment: comment.trim(),
+    });
+    setSubmitting(false);
+
+    if (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Review failed',
+        text2:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.detail || 'Please try again.',
+      });
+      return;
+    }
+
+    Toast.show({
+      type: 'success',
+      text1: 'Review submitted',
+      text2: 'Thank you for your feedback!',
+    });
     navigation.goBack();
   };
 
@@ -44,18 +93,22 @@ const WriteReview = () => {
         <Image source={images.khadi} style={styles.brandLogo} />
 
         <View style={styles.card}>
-          <Text style={styles.brandName}>Khaaddi</Text>
+          <Text style={styles.brandName}>{brandName}</Text>
 
           <Text style={styles.title}>How was your experience?</Text>
           <Text style={styles.subtitle}>Your feedback helps us improve!</Text>
 
           {/* Interactive stars */}
           <View style={styles.starsRow}>
-
-            <Image
-              source={images.Stars}
+            <StarRating
+              rating={rating}
+              onChange={setRating}
+              step="full"
+              color={STAR_COLOR}
+              emptyColor="#D9D9D9"
+              starSize={width * 0.1}
+              starStyle={styles.starButton}
             />
-
           </View>
 
           {/* Comments */}
@@ -73,13 +126,15 @@ const WriteReview = () => {
 
       <View style={{ marginBottom: height * 0.04, alignItems: 'center' }}>
         <CustomButton
-          text="Submit Review"
+          text={submitting ? 'Submitting...' : 'Submit Review'}
           textColor={colors.white}
           backgroundColor={colors.lightbrown}
           borderRadius={20}
           btnWidth={width * 0.85}
           btnHeight={height * 0.06}
           fontSize={fontSizes.md}
+          onPress={handleSubmit}
+          disabled={submitting}
         />
       </View>
     </ImageBackground>

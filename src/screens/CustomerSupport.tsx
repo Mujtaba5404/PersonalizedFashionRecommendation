@@ -19,8 +19,20 @@ import { fontSizes } from '../utilities/fontsizes';
 const CustomerSupport = () => {
   const navigation = useNavigation<NavigationProp<any>>();
 
-  const handleEmailUs = () => {
-    Linking.openURL('mailto:support@tonefit.com').catch(() => { });
+  const SUPPORT_EMAIL = 'haniamugheez04@gmail.com';
+
+  const handleEmailUs = async () => {
+    const subject = encodeURIComponent('Customer Support');
+    // Prefer the native Gmail app; fall back to the default mail handler.
+    const gmailUrl = `googlegmail:///co?to=${SUPPORT_EMAIL}&subject=${subject}`;
+    const mailtoUrl = `mailto:${SUPPORT_EMAIL}?subject=${subject}`;
+
+    try {
+      const canOpenGmail = await Linking.canOpenURL(gmailUrl);
+      await Linking.openURL(canOpenGmail ? gmailUrl : mailtoUrl);
+    } catch {
+      Linking.openURL(mailtoUrl).catch(() => {});
+    }
   };
 
   return (

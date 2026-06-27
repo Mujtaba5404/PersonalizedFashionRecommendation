@@ -133,7 +133,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
             onPress={handleLogout}
           >
             <Text style={styles.logoutText}>Logout</Text>
-            <Icon name="log-out-outline" size={width * 0.06} color={colors.white} />
+            <Image source={images.Logout} style={{ width: 20, height: 20 }} />
           </TouchableOpacity>
         </Animated.View>
 
