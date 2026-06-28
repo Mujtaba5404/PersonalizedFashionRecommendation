@@ -16,7 +16,7 @@ import CustomProfileImgModal from '../components/CustomProfileImage';
 import ImagePicker from 'react-native-image-crop-picker';
 import Toast from 'react-native-toast-message';
 import { useAppDispatch } from '../redux/hooks';
-import { setArPhoto } from '../redux/slice/roleSlice';
+import { setArPhoto, setUserAuthToken } from '../redux/slice/roleSlice';
 import { uploadFile } from '../services/upload';
 import { ensureAuthToken } from '../services/auth';
 
@@ -179,16 +179,51 @@ const CreateProfile = () => {
 
     // The analyze + recommendations endpoints are auth-protected. Obtain a
     // token silently using the credentials captured at registration.
-    await ensureAuthToken();
+    const token = await ensureAuthToken();
+    if (!token) {
+      setLoading(false);
+      Toast.show({
+        type: 'error',
+        text1: 'Session expired',
+        text2: 'Please sign in again to continue.',
+      });
+      navigation.navigate('SignInEmail');
+      return;
+    }
 
     // Upload the photo for skin-tone analysis (multipart field `file`).
-    const { data, error } = await uploadFile('skintone/analyze', {
+    // Pass the token explicitly so the request can't race the store update.
+    const uploadArgs = {
       name: 'file',
       base64: photoData.base64,
       mime: photoData.mime,
       filename: 'profile.jpg',
-    });
+    } as const;
+
+    let result = await uploadFile('skintone/analyze', uploadArgs, {}, token);
+
+    // A persisted token can be expired / from an old backend session. On 401,
+    // drop it, log in fresh, and retry once.
+    if (result.status === 401) {
+      dispatch(setUserAuthToken(null));
+      const freshToken = await ensureAuthToken(true);
+      if (freshToken) {
+        result = await uploadFile('skintone/analyze', uploadArgs, {}, freshToken);
+      }
+    }
+
+    const { data, error } = result;
     setLoading(false);
+
+    if (result.status === 401) {
+      Toast.show({
+        type: 'error',
+        text1: 'Session expired',
+        text2: 'Please sign in again to continue.',
+      });
+      navigation.navigate('SignInEmail');
+      return;
+    }
 
     if (error || !data) {
       Toast.show({

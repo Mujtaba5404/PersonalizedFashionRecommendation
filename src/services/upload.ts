@@ -34,13 +34,17 @@ export interface UploadResult<T = any> {
  * @param endPoint  Path relative to BASE_URL, e.g. `skintone/analyze`.
  * @param field     The file field to upload.
  * @param query     Optional query params appended to the URL.
+ * @param authToken Optional Bearer token. Pass this when the caller just
+ *                  obtained a token (e.g. via ensureAuthToken) to avoid
+ *                  depending on the Redux store being updated in time.
  */
 export const uploadFile = async <T = any>(
   endPoint: string,
   field: UploadField,
   query: Record<string, string | number> = {},
+  authToken?: string | null,
 ): Promise<UploadResult<T>> => {
-  const token = store.getState()?.role?.userAuthToken;
+  const token = authToken ?? store.getState()?.role?.userAuthToken;
   const lang = store.getState()?.role?.languageSelect ?? 'en';
 
   const qs = Object.keys(query).length
@@ -58,6 +62,7 @@ export const uploadFile = async <T = any>(
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
+  console.log(`[uploadFile] POST ${url} | token: ${token ? '✅ present' : '❌ MISSING'}`);
 
   store.dispatch(showLoader('loading'));
   try {
