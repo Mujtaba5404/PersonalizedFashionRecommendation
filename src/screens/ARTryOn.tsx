@@ -4,16 +4,12 @@ import {
   useNavigation,
   useRoute,
 } from '@react-navigation/native';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
-  Animated,
-  Image,
   ImageBackground,
   ImageSourcePropType,
-  PanResponder,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -53,34 +49,6 @@ const ARTryOn = () => {
   const dressImage = route.params?.dressImage ?? images.product1;
 
   const [adding, setAdding] = useState(false);
-  const [scale, setScale] = useState(1);
-  // Recommended outfits often carry a server-local / unreachable image_url, so
-  // the remote source silently fails to load and the garment never appears over
-  // the user photo. Fall back to a bundled garment so the overlay is always
-  // visible.
-  const [dressFailed, setDressFailed] = useState(false);
-  const dressSource = dressFailed ? images.product1 : dressImage;
-
-  // Draggable position of the garment overlay.
-  const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        pan.extractOffset();
-      },
-      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
-        useNativeDriver: false,
-      }),
-      onPanResponderRelease: () => {
-        pan.flattenOffset();
-      },
-    }),
-  ).current;
-
-  const grow = () => setScale(s => Math.min(2.5, s + 0.12));
-  const shrink = () => setScale(s => Math.max(0.4, s - 0.12));
 
   // Best-effort: save the try-on snapshot server-side. Non-blocking; failures
   // (e.g. the server can't reach the dress image) are silently ignored.
@@ -118,7 +86,7 @@ const ARTryOn = () => {
         productId: productId ?? title,
         name: title,
         description: '',
-        image: dressSource,
+        image: dressImage,
         size: 'M',
         price: price || 'N/A',
         quantity: 1,
@@ -148,44 +116,6 @@ const ARTryOn = () => {
             {title}
           </Text>
           {/* <View style={styles.iconBtn} /> */}
-        </View>
-
-        {/* Draggable garment overlay */}
-        <Animated.View
-          {...panResponder.panHandlers}
-          style={[
-            styles.dressWrap,
-            {
-              transform: [
-                { translateX: pan.x },
-                { translateY: pan.y },
-                { scale },
-              ],
-            },
-          ]}
-        >
-          <Image
-            source={dressSource}
-            style={styles.dress}
-            onError={() => setDressFailed(true)}
-          />
-        </Animated.View>
-
-        {/* Hint */}
-        <View style={styles.hint}>
-          <Text style={styles.hintText}>
-            Drag the outfit to fit · use + / − to resize
-          </Text>
-        </View>
-
-        {/* Resize controls */}
-        <View style={styles.sizeControls}>
-          <TouchableOpacity style={styles.sizeBtn} onPress={shrink} activeOpacity={0.8}>
-            <Text style={styles.sizeBtnText}>−</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sizeBtn} onPress={grow} activeOpacity={0.8}>
-            <Text style={styles.sizeBtnText}>+</Text>
-          </TouchableOpacity>
         </View>
       </ImageBackground>
 
@@ -286,6 +216,11 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xl ?? 26,
     fontFamily: fontFamily.UrbanistExtraBold,
     lineHeight: fontSizes.xl ?? 28,
+  },
+  resetBtnText: {
+    color: colors.white,
+    fontSize: fontSizes.lg ?? 22,
+    fontFamily: fontFamily.UrbanistExtraBold,
   },
   footer: {
     backgroundColor: colors.white,
