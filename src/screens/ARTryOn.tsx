@@ -28,6 +28,7 @@ import { uploadFile } from '../services/upload';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
+import TopHeader from '../components/Topheader';
 
 type ARTryOnParams = {
   ARTryOn?: {
@@ -53,6 +54,12 @@ const ARTryOn = () => {
 
   const [adding, setAdding] = useState(false);
   const [scale, setScale] = useState(1);
+  // Recommended outfits often carry a server-local / unreachable image_url, so
+  // the remote source silently fails to load and the garment never appears over
+  // the user photo. Fall back to a bundled garment so the overlay is always
+  // visible.
+  const [dressFailed, setDressFailed] = useState(false);
+  const dressSource = dressFailed ? images.product1 : dressImage;
 
   // Draggable position of the garment overlay.
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
@@ -88,7 +95,7 @@ const ARTryOn = () => {
         filename: 'tryon.jpg',
       },
       { product_id: productId },
-    ).catch(() => {});
+    ).catch(() => { });
   };
 
   const handleAddToCart = async () => {
@@ -111,7 +118,7 @@ const ARTryOn = () => {
         productId: productId ?? title,
         name: title,
         description: '',
-        image: dressImage,
+        image: dressSource,
         size: 'M',
         price: price || 'N/A',
         quantity: 1,
@@ -136,17 +143,11 @@ const ARTryOn = () => {
       >
         {/* Top bar */}
         <View style={[styles.topBar, { paddingTop: insets.top + height * 0.01 }]}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            activeOpacity={0.8}
-            onPress={() => navigation.goBack()}
-          >
-            <Image source={images.backIcon} style={styles.backIcon} />
-          </TouchableOpacity>
+          <TopHeader isBack={true} />
           <Text style={styles.topTitle} numberOfLines={1}>
             {title}
           </Text>
-          <View style={styles.iconBtn} />
+          {/* <View style={styles.iconBtn} /> */}
         </View>
 
         {/* Draggable garment overlay */}
@@ -163,7 +164,11 @@ const ARTryOn = () => {
             },
           ]}
         >
-          <Image source={dressImage} style={styles.dress} />
+          <Image
+            source={dressSource}
+            style={styles.dress}
+            onError={() => setDressFailed(true)}
+          />
         </Animated.View>
 
         {/* Hint */}
@@ -264,8 +269,8 @@ const styles = StyleSheet.create({
   },
   sizeControls: {
     position: 'absolute',
-    right: width * 0.05,
-    top: height * 0.3,
+    right: width * 0.06,
+    top: height * 0.62,
     gap: height * 0.015,
   },
   sizeBtn: {

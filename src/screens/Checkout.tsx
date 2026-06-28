@@ -17,12 +17,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BouncyCheckbox from 'react-native-bouncy-checkbox';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useStripe } from '@stripe/stripe-react-native';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
 import TopHeader from '../components/Topheader';
-import { STRIPE_MERCHANT_NAME } from '../config/stripe';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { clearCart, removeFromCart } from '../redux/slice/cartSlice';
 import { apiHelper } from '../services';
@@ -68,7 +66,6 @@ const Checkout = () => {
   const route = useRoute<RouteProp<CheckoutRoute, 'Checkout'>>();
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const items = useAppSelector(state => state.cart.items);
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('pickup');
   const [address, setAddress] = useState<DeliveryAddress | null>(null);
@@ -80,94 +77,14 @@ const Checkout = () => {
   );
   const currencyPrefix = items[0]?.price?.includes('$') ? '$' : 'Rs. ';
 
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash'>('card');
+  const paymentMethod = 'cash';
   const [placing, setPlacing] = useState(false);
-
-  const cards = useAppSelector(state => state.payment.cards);
-  const selectedCardId = useAppSelector(state => state.payment.selectedCardId);
-  const selectedCard = cards.find(c => c.id === selectedCardId) ?? null;
 
   useEffect(() => {
     if (route.params?.address) {
       setAddress(route.params.address);
     }
   }, [route.params?.address]);
-
-  // Runs the Stripe PaymentSheet. Returns true only if the charge succeeded.
-  // Requires a backend endpoint that creates a PaymentIntent and returns its
-  // client_secret (the Stripe SECRET key must stay on the server, never here).
-  const payWithStripe = async (): Promise<boolean> => {
-    const { response, error } = await apiHelper(
-      'POST',
-      'payment/create-intent',
-      {},
-      {},
-      {
-        // Amount in the smallest currency unit (e.g. paisa). The backend
-        // should re-compute/validate this from the user's cart, not trust it.
-        amount: Math.round(itemsTotal * 100),
-        currency: 'pkr',
-      },
-    );
-
-    if (error) {
-      Toast.show({
-        type: 'error',
-        text1: 'Payment setup failed',
-        text2:
-          typeof error === 'string'
-            ? error
-            : (error as any)?.detail || 'Please try again.',
-      });
-      return false;
-    }
-
-    const data: any = response?.data || {};
-    const clientSecret =
-      data.client_secret ?? data.clientSecret ?? data.paymentIntentClientSecret;
-
-    if (!clientSecret) {
-      Toast.show({
-        type: 'error',
-        text1: 'Payment setup failed',
-        text2: 'Could not start the payment. Please try again.',
-      });
-      return false;
-    }
-
-    const init = await initPaymentSheet({
-      merchantDisplayName: STRIPE_MERCHANT_NAME,
-      paymentIntentClientSecret: clientSecret,
-      customerId: data.customer,
-      customerEphemeralKeySecret: data.ephemeral_key ?? data.ephemeralKey,
-      defaultBillingDetails: { name: address?.fullName },
-    });
-
-    if (init.error) {
-      Toast.show({
-        type: 'error',
-        text1: 'Payment error',
-        text2: init.error.message,
-      });
-      return false;
-    }
-
-    const { error: sheetError } = await presentPaymentSheet();
-
-    if (sheetError) {
-      // Stripe returns code 'Canceled' when the user dismisses the sheet.
-      if (sheetError.code !== 'Canceled') {
-        Toast.show({
-          type: 'error',
-          text1: 'Payment failed',
-          text2: sheetError.message,
-        });
-      }
-      return false;
-    }
-
-    return true;
-  };
 
   const handlePlaceOrder = async () => {
     if (placing) return;
@@ -185,16 +102,7 @@ const Checkout = () => {
 
     setPlacing(true);
 
-    // Card payments go through Stripe; cash skips it.
-    if (paymentMethod === 'card') {
-      const paid = await payWithStripe();
-      if (!paid) {
-        setPlacing(false);
-        return;
-      }
-    }
-
-    // Finalize the order on the backend (no raw card data — Stripe handled it).
+    // Finalize the order on the backend (cash on delivery / pickup).
     const { error } = await apiHelper('POST', 'payment/checkout', {}, {}, {
       delivery_address: deliveryAddress,
       payment_method: paymentMethod,
@@ -384,76 +292,14 @@ const Checkout = () => {
       <View style={[styles.footer, { paddingBottom: insets.bottom + height * 0.02 }]}>
         <Text style={styles.paymentTitle}>Select Payment Method</Text>
 
-        {/* Card / Cash choice */}
+        {/* Cash only */}
         <View style={styles.methodRow}>
-          <TouchableOpacity
-            style={[
-              styles.methodChip,
-              paymentMethod === 'card' && styles.methodChipActive,
-            ]}
-            activeOpacity={0.85}
-            onPress={() => setPaymentMethod('card')}
-          >
-            <Text
-              style={[
-                styles.methodText,
-                paymentMethod === 'card' && styles.methodTextActive,
-              ]}
-            >
-              Card
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.methodChip,
-              paymentMethod === 'cash' && styles.methodChipActive,
-            ]}
-            activeOpacity={0.85}
-            onPress={() => setPaymentMethod('cash')}
-          >
-            <Text
-              style={[
-                styles.methodText,
-                paymentMethod === 'cash' && styles.methodTextActive,
-              ]}
-            >
+          <View style={[styles.methodChip, styles.methodChipActive]}>
+            <Text style={[styles.methodText, styles.methodTextActive]}>
               Cash
             </Text>
-          </TouchableOpacity>
+          </View>
         </View>
-
-        {/* Selected card from Payment Methods (charged securely via Stripe) */}
-        {paymentMethod === 'card' && (
-          <TouchableOpacity
-            style={styles.paymentCard}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('PaymentMethods')}
-          >
-            <View style={styles.cardLogo}>
-              <View style={[styles.cardCircle, { backgroundColor: '#EB001B' }]} />
-              <View style={[styles.cardCircle, styles.cardCircleOverlap, { backgroundColor: '#F79E1B' }]} />
-            </View>
-
-            <View style={styles.cardInfo}>
-              {selectedCard ? (
-                <>
-                  <Text style={styles.cardLabel}>{selectedCard.name}</Text>
-                  <Text style={styles.cardNumberText}>
-                    **** **** **** {selectedCard.last4}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.cardLabel}>Add Payment Method</Text>
-                  <Text style={styles.cardNumberText}>No card selected</Text>
-                </>
-              )}
-            </View>
-
-            <Icon name="chevron-forward" size={width * 0.06} color={colors.black} />
-          </TouchableOpacity>
-        )}
 
         <View style={styles.footerBottom}>
           <View>
