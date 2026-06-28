@@ -35,6 +35,7 @@ type Order = {
   qty: number;
   deliveryDate: string;
   price: string;
+  totalAmount: number;
   createdAt: string;
   deliveryAddress: string;
 };
@@ -45,6 +46,7 @@ const mapOrder = (raw: any, index: number): Order => {
   const imageUrl = String(raw?.image_url || raw?.image || '');
   const isRemote = /^https?:\/\//i.test(imageUrl);
   const price = raw?.price ?? raw?.total_amount ?? raw?.total;
+  const totalAmount = Number(raw?.total_amount ?? raw?.price ?? raw?.total ?? 0);
 
   return {
     id: Number(raw?.id ?? raw?.order_id ?? index),
@@ -54,6 +56,7 @@ const mapOrder = (raw: any, index: number): Order => {
     qty: Number(raw?.quantity ?? raw?.qty ?? raw?.items?.length ?? 1),
     deliveryDate: raw?.delivery_date || raw?.deliveryDate || '',
     price: price != null ? `Rs. ${price}` : '',
+    totalAmount: isNaN(totalAmount) ? 0 : totalAmount,
     createdAt: raw?.created_at || raw?.createdAt || '',
     deliveryAddress: raw?.delivery_address || raw?.deliveryAddress || '',
   };

@@ -1,6 +1,11 @@
-import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
 import {
+  NavigationProp,
+  useFocusEffect,
+  useNavigation,
+} from '@react-navigation/native';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
   FlatList,
   Image,
   ImageBackground,
@@ -12,10 +17,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import TopHeader from '../components/Topheader';
+import { apiHelper } from '../services';
+import { ensureAuthToken } from '../services/auth';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -34,20 +42,83 @@ type Product = {
 
 const CATEGORIES = ['All', 'Dresses', 'Coats', 'Shoes', 'Bags'];
 
-const INITIAL_PRODUCTS: Product[] = [
-  { id: '1', name: 'Women Jute Coat', price: '$299', oldPrice: '$349', discount: '15%', rating: '4.8', image: images.Onboarding, isFavorite: false },
-  { id: '2', name: 'Satchel Dress', price: '$199', rating: '4.6', image: images.product2, isFavorite: true },
-  { id: '3', name: 'Summer Dress', price: '$159', oldPrice: '$189', discount: '20%', rating: '4.9', image: images.product3, isFavorite: false },
-  { id: '4', name: 'Party Dress', price: '$129', rating: '4.7', image: images.product4, isFavorite: true },
-  { id: '5', name: 'Classic Heels', price: '$89', rating: '4.5', image: images.product5, isFavorite: false },
-  { id: '6', name: 'Casual Bag', price: '$75', oldPrice: '$95', discount: '21%', rating: '4.8', image: images.product6, isFavorite: false },
+// The backend returns `image_url` as a server-local filesystem path which isn't
+// reachable from the device, so we fall back to bundled images for anything
+// that isn't a real http(s) URL.
+const PLACEHOLDERS: ImageSourcePropType[] = [
+  images.product1,
+  images.product2,
+  images.product3,
+  images.product4,
+  images.product5,
+  images.product6,
 ];
+
+const resolveImage = (rawUrl: string, index: number): ImageSourcePropType => {
+  const url = String(rawUrl || '');
+  if (/^https?:\/\//i.test(url)) {
+    return { uri: url };
+  }
+  return PLACEHOLDERS[index % PLACEHOLDERS.length];
+};
+
+const mapProduct = (raw: any, index: number): Product => ({
+  id: String(raw?.id ?? raw?._id ?? index),
+  name: raw?.brand_name || raw?.name || raw?.main_category || 'Product',
+  price: raw?.price ? `Rs. ${raw.price}` : '',
+  oldPrice: raw?.old_price ? `Rs. ${raw.old_price}` : undefined,
+  rating: raw?.rating ? String(raw.rating) : undefined,
+  image: resolveImage(raw?.image_url, index),
+  isFavorite: false,
+});
 
 const Home = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    await ensureAuthToken();
+
+    const { response, error } = await apiHelper('GET', 'products/all-products');
+    setLoading(false);
+
+    if (error || !response?.data) {
+      Toast.show({
+        type: 'error',
+        text1: 'Could not load products',
+        text2:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.detail || 'Please try again.',
+      });
+      return;
+    }
+
+    const data = response.data;
+    const list: any[] = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.products)
+        ? data.products
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
+
+    setProducts(list.map(mapProduct));
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProducts();
+    }, [fetchProducts]),
+  );
+
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  );
 
   const toggleFavorite = (id: string) => {
     setProducts(prev =>
@@ -97,7 +168,7 @@ const Home = () => {
 
       <View style={styles.ratingRow}>
         <Image source={images.Stars} style={{ width: 12, height: 12 }} />
-        <Text style={styles.ratingText}>{item.rating}</Text>
+        <Text style={styles.ratingText}>{item.rating || '4.6 Rating'}</Text>
       </View>
 
       <View style={styles.priceRow}>
@@ -149,47 +220,35 @@ const Home = () => {
           </View>
         </ImageBackground>
 
-        {/* CATEGORY CHIPS */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryRow}
-        >
-          {CATEGORIES.map(cat => {
-            const active = cat === activeCategory;
-            return (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.chip, active && styles.chipActive]}
-                activeOpacity={0.85}
-                onPress={() => setActiveCategory(cat)}
-              >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
         {/* SECTION HEADER */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Popular</Text>
-          <TouchableOpacity activeOpacity={0.7}>
-            <Text style={styles.seeAllText}>See all</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Popular Products</Text>
         </View>
 
         {/* PRODUCTS */}
         <View style={styles.productsSection}>
-          <FlatList
-            data={products}
-            renderItem={renderProductItem}
-            keyExtractor={item => item.id}
-            numColumns={2}
-            scrollEnabled={false}
-            columnWrapperStyle={styles.productsRow}
-          />
+          {loading ? (
+            <ActivityIndicator
+              color={colors.lightbrown}
+              size="large"
+              style={{ marginVertical: height * 0.05 }}
+            />
+          ) : filteredProducts.length > 0 ? (
+            <FlatList
+              data={filteredProducts}
+              renderItem={renderProductItem}
+              keyExtractor={item => item.id}
+              numColumns={2}
+              scrollEnabled={false}
+              columnWrapperStyle={styles.productsRow}
+            />
+          ) : (
+            <Text style={styles.emptyText}>
+              {searchQuery.trim()
+                ? `No products found for "${searchQuery.trim()}".`
+                : 'No products available.'}
+            </Text>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -347,6 +406,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.UrbanistExtraBold,
     fontSize: fontSizes.lg2,
     color: colors.black,
+    top: height * 0.02,
   },
   seeAllText: {
     fontFamily: fontFamily.UrbanistSemiBold,
@@ -358,6 +418,7 @@ const styles = StyleSheet.create({
   productsSection: {
     paddingHorizontal: width * 0.05,
     marginBottom: height * 0.02,
+    top: height * 0.03,
   },
   productsRow: {
     justifyContent: 'space-between',
@@ -429,7 +490,7 @@ const styles = StyleSheet.create({
   ratingText: {
     fontFamily: fontFamily.UrbanistMedium,
     fontSize: fontSizes.xsm,
-    color: '#8A8A8A',
+    color: colors.black,
   },
   priceRow: {
     flexDirection: 'row',
@@ -446,6 +507,13 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xsm,
     color: '#B0B0B0',
     textDecorationLine: 'line-through',
+  },
+  emptyText: {
+    fontFamily: fontFamily.UrbanistMedium,
+    fontSize: fontSizes.md,
+    color: colors.black,
+    textAlign: 'center',
+    marginVertical: height * 0.05,
   },
 });
 

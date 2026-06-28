@@ -111,7 +111,7 @@ const Profile = () => {
       <TouchableOpacity
         style={styles.profileContainer}
         activeOpacity={0.7}
-        onPress={() => navigation.navigate('EditProfile')}
+      // onPress={() => navigation.navigate('EditProfile')}
       >
         <Image
           source={images.profileImage}
@@ -121,14 +121,14 @@ const Profile = () => {
       </TouchableOpacity>
 
       <View style={styles.optionsWrapper}>
-        <Text style={styles.settings}>Profile Settings</Text>
-        <TouchableOpacity
+        {/* <Text style={styles.settings}>Profile Settings</Text> */}
+        {/* <TouchableOpacity
           style={styles.optionRow}
           activeOpacity={0.7}
           onPress={() => navigation.navigate('EditProfile')}
         >
           <Text style={styles.optionText}>Edit Profile</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <Text style={styles.settings}>Accounts Settings</Text>
 
         <TouchableOpacity

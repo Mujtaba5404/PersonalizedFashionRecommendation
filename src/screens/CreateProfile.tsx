@@ -14,12 +14,20 @@ import { fontSizes } from '../utilities/fontsizes';
 import CustomTextInput from '../components/CustomTextInput';
 import CustomProfileImgModal from '../components/CustomProfileImage';
 import ImagePicker from 'react-native-image-crop-picker';
+import Toast from 'react-native-toast-message';
+import { useAppDispatch } from '../redux/hooks';
+import { setArPhoto } from '../redux/slice/roleSlice';
+import { uploadFile } from '../services/upload';
+import { ensureAuthToken } from '../services/auth';
 
 // type Props = NativeStackScreenProps<MainStackParamList, 'CreateProfile'>;
 
 const CreateProfile = () => {
   const navigation = useNavigation<NavigationProp<any>>();
+  const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
+  // Base64 + mime of the chosen photo, needed for the skin-tone upload.
+  const [photoData, setPhotoData] = useState<{ base64: string; mime: string } | null>(null);
   const [bio, setBio] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -34,11 +42,14 @@ const CreateProfile = () => {
   const [category, setCategory] = useState('');
   const [subCategory, setSubCategory] = useState('');
 
+  // Categories match the backend `main_category` values used by
+  // GET /skintone/recommendations?category=
   const categoryOptions = [
     { name: 'Select category', id: '' },
-    { name: 'Casual', id: 'casual' },
-    { name: 'Seasonal', id: 'seasonal' },
-    { name: 'Shadi Wear', id: 'shadi-wear' },
+    { name: 'Summer Wear', id: 'Summer Wear' },
+    { name: 'Winter Wear', id: 'Winter Wear' },
+    { name: 'Party Wear', id: 'Party Wear' },
+    { name: 'Shadi Wear', id: 'Shadi Wear' },
   ];
 
   // Sub-categories keyed by the parent category id.
@@ -95,6 +106,16 @@ const CreateProfile = () => {
     }
   };
 
+  // Stores the picked image for both preview (uri) and upload (base64).
+  const handlePicked = (image: { path: string; data?: string | null; mime?: string }) => {
+    setProfileImage(image.path);
+    if (image.data) {
+      const mime = image.mime || 'image/jpeg';
+      setPhotoData({ base64: image.data, mime });
+      dispatch(setArPhoto({ uri: image.path, base64: image.data, mime }));
+    }
+  };
+
   const openGallery = () => {
     // Close the modal first so the native picker isn't blocked by the JS Modal.
     setModalOpen(false);
@@ -104,10 +125,9 @@ const CreateProfile = () => {
         height: 400,
         cropping: true,
         mediaType: 'photo',
+        includeBase64: true,
       })
-        .then(image => {
-          setProfileImage(image.path);
-        })
+        .then(handlePicked)
         .catch(() => { });
     }, 400);
   };
@@ -125,25 +145,75 @@ const CreateProfile = () => {
         height: 400,
         cropping: true,
         mediaType: 'photo',
+        includeBase64: true,
       })
-        .then(image => {
-          setProfileImage(image.path);
-        })
+        .then(handlePicked)
         .catch(() => { });
     }, 400);
   };
 
-  const handleCreateProfile = () => {
-    const categoryName =
-      categoryOptions.find(c => c.id === category)?.name ?? '';
-    const subCategoryName =
-      subCategoryOptions.find(s => s.id === subCategory)?.name ?? '';
+  const handleCreateProfile = async () => {
+    if (loading) return;
 
-    navigation.navigate('CategoryProducts', {
+    if (!photoData?.base64) {
+      Toast.show({
+        type: 'error',
+        text1: 'Photo required',
+        text2: 'Please upload a clear photo of your face first.',
+      });
+      return;
+    }
+    if (!category) {
+      Toast.show({
+        type: 'error',
+        text1: 'Select a category',
+        text2: 'Please choose a clothing category to continue.',
+      });
+      return;
+    }
+
+    const categoryName =
+      categoryOptions.find(c => c.id === category)?.name ?? category;
+
+    setLoading(true);
+
+    // The analyze + recommendations endpoints are auth-protected. Obtain a
+    // token silently using the credentials captured at registration.
+    await ensureAuthToken();
+
+    // Upload the photo for skin-tone analysis (multipart field `file`).
+    const { data, error } = await uploadFile('skintone/analyze', {
+      name: 'file',
+      base64: photoData.base64,
+      mime: photoData.mime,
+      filename: 'profile.jpg',
+    });
+    setLoading(false);
+
+    if (error || !data) {
+      Toast.show({
+        type: 'error',
+        text1: 'Analysis failed',
+        text2:
+          typeof error === 'string' ? error : 'Could not analyze the photo. Please try again.',
+      });
+      return;
+    }
+
+    const detectedTone = data.detected_tone ?? data.tone ?? '';
+    const detectedHex = data.hex ?? data.detected_hex ?? '';
+
+    Toast.show({
+      type: 'success',
+      text1: 'Skin tone detected',
+      text2: data.message || `Detected tone: ${detectedTone || 'done'}`,
+    });
+
+    navigation.navigate('RecommendedProducts', {
       category,
       categoryName,
-      subCategory,
-      subCategoryName,
+      detectedTone,
+      detectedHex,
     });
   };
 
@@ -202,12 +272,13 @@ const CreateProfile = () => {
 
         <View style={styles.btnMain}>
           <CustomButton
-            text="Continue"
+            text={loading ? 'Analyzing...' : 'Continue'}
             textColor={colors.white}
             btnHeight={height * 0.065}
             btnWidth={width * 0.85}
             backgroundColor={colors.lightbrown}
             borderRadius={20}
+            disabled={loading}
             onPress={handleCreateProfile}
           />
         </View>

@@ -23,7 +23,7 @@ import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
 import CustomTextInput from '../components/CustomTextInput';
 import { useAppDispatch } from '../redux/hooks';
-import { setUser } from '../redux/slice/roleSlice';
+import { setPendingAuth, setUser } from '../redux/slice/roleSlice';
 import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
@@ -132,6 +132,9 @@ const Registeration = () => {
           image: user?.profile_image,
         }),
       );
+      // Stash credentials so we can silently obtain an auth token later in the
+      // flow (the backend issues tokens only via /login, not register/OTP).
+      dispatch(setPendingAuth({ email: email.trim(), password }));
       Toast.show({
         type: 'success',
         text1: 'Success',

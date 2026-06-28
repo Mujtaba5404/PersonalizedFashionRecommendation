@@ -1,6 +1,7 @@
 
 
 import React from 'react';
+import { ImageSourcePropType } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import Splash from '../screens/Splash';
@@ -34,6 +35,8 @@ import WriteReview from '../screens/WriteReview';
 import PaymentMethods from '../screens/PaymentMethods';
 import MyOrders from '../screens/MyOrders';
 import CategoryProducts from '../screens/CategoryProducts';
+import RecommendedProducts from '../screens/RecommendedProducts';
+import ARTryOn from '../screens/ARTryOn';
 import NotificationsScreen from '../screens/NotificationsScreen';
 
 export type MainStackParamList = {
@@ -88,6 +91,21 @@ export type MainStackParamList = {
     subCategory?: string;
     subCategoryName?: string;
   };
+  RecommendedProducts: {
+    category: string;
+    categoryName?: string;
+    detectedTone?: string;
+    detectedHex?: string;
+  };
+  ARTryOn:
+    | {
+        productId?: number | string;
+        title?: string;
+        price?: string;
+        brand?: string;
+        dressImage?: ImageSourcePropType;
+      }
+    | undefined;
 };
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -126,6 +144,8 @@ const MainStack = () => {
       <Stack.Screen name="MyOrders" component={MyOrders} />
       <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
       <Stack.Screen name="CategoryProducts" component={CategoryProducts} />
+      <Stack.Screen name="RecommendedProducts" component={RecommendedProducts} />
+      <Stack.Screen name="ARTryOn" component={ARTryOn} />
     </Stack.Navigator>
   );
 };

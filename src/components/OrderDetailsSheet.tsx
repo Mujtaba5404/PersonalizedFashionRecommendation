@@ -26,7 +26,14 @@ interface OrderInfo {
   status: string;
   createdAt: string;
   deliveryAddress: string;
+  totalAmount: number;
 }
+
+// Platform fee charged on top of the order subtotal.
+const PLATFORM_FEE_RATE = 0.02;
+
+const formatPrice = (value: number): string =>
+  `Rs. ${Math.round(value).toLocaleString()}`;
 
 interface OrderDetailsSheetProps {
   visible: boolean;
@@ -79,6 +86,10 @@ const OrderDetailsSheet: React.FC<OrderDetailsSheetProps> = ({
   delivering = false,
 }) => {
   const isDelivery = variant === 'delivery';
+
+  const subtotal = order?.totalAmount ?? 0;
+  const platformFee = subtotal * PLATFORM_FEE_RATE;
+  const total = subtotal + platformFee;
 
   const HelpButton = () => (
     <TouchableOpacity style={styles.helpButton} activeOpacity={0.8} onPress={onHelp}>
@@ -217,10 +228,9 @@ const OrderDetailsSheet: React.FC<OrderDetailsSheetProps> = ({
 
             {/* Summary */}
             <View style={styles.summary}>
-              <SummaryRow label="Subtotal" value="$59.70" />
-              <SummaryRow label="Platform Fee" value="$2.82" />
-              <SummaryRow label="GST" value="$5.82" />
-              <SummaryRow label="Total" value="$75.37" bold />
+              <SummaryRow label="Subtotal" value={formatPrice(subtotal)} />
+              <SummaryRow label="Platform Fee" value={formatPrice(platformFee)} />
+              <SummaryRow label="Total" value={formatPrice(total)} bold />
             </View>
           </ScrollView>
         </View>
