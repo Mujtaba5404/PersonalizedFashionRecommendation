@@ -9,6 +9,7 @@ import { hideLoader, showLoader } from '../redux/slice/screenSlice';
 import { store } from '../redux/store';
 
 export const BASE_URL = 'http://13.60.8.217:8000';
+// export const BASE_URL = 'http://10.0.2.2:8000';
 
 const instance = axios.create({
     baseURL: BASE_URL,

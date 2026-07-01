@@ -19,7 +19,6 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { fontFamily } from '../assets/Fonts';
-import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
 import TopHeader from '../components/Topheader';
 import { MainStackParamList } from '../navigation/MainStack';
@@ -29,18 +28,26 @@ import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
 
-// The backend returns `image_url` as a server-local filesystem path
-// (e.g. D:/Tonefit_Project/...), which isn't reachable from the device. Until
-// the API serves real URLs we fall back to these bundled images so the grid and
-// the AR overlay always show a real garment.
-const PLACEHOLDERS: ImageSourcePropType[] = [
-  images.product1,
-  images.product2,
-  images.product3,
-  images.product4,
-  images.product5,
-  images.product6,
-];
+// Renders the API garment image (presigned S3 `image_url`). No bundled
+// placeholders — on load error we just show a plain neutral box.
+const GarmentImage = ({ source, style }: { source: ImageSourcePropType; style: any }) => {
+  const [failed, setFailed] = useState(false);
+  const uri = typeof source === 'object' && source && 'uri' in source ? source.uri : '(local)';
+  if (failed) {
+    return <View style={[style, { backgroundColor: '#ECECEC' }]} />;
+  }
+  return (
+    <Image
+      source={source}
+      style={style}
+      resizeMode="cover"
+      onError={e => {
+        console.log('[GarmentImage] FAILED:', uri, '| error:', e?.nativeEvent?.error);
+        setFailed(true);
+      }}
+    />
+  );
+};
 
 type Outfit = {
   id: number | string;
@@ -56,13 +63,10 @@ type StyleGuide = {
   advice: string;
 };
 
-const resolveImage = (rawUrl: string, index: number): ImageSourcePropType => {
-  const url = String(rawUrl || '');
-  if (/^https?:\/\//i.test(url)) {
-    return { uri: url };
-  }
-  return PLACEHOLDERS[index % PLACEHOLDERS.length];
-};
+// Always use the API's image_url directly (no bundled fallback).
+const resolveImage = (rawUrl: string): ImageSourcePropType => ({
+  uri: String(rawUrl || ''),
+});
 
 type RecommendedRoute = RouteProp<MainStackParamList, 'RecommendedProducts'>;
 
@@ -114,19 +118,34 @@ const RecommendedProducts = () => {
       advice: guide.expert_advice ?? '',
     });
 
-    const list: any[] = Array.isArray(data.recommended_outfits)
-      ? data.recommended_outfits
-      : Array.isArray(data.recommendations)
+    // Prefer `recommendations` — it carries presigned (signed) S3 image_urls that
+    // actually load. `recommended_outfits` is the raw catalog whose image_urls are
+    // unsigned and return HTTP 403, so it's only a last resort.
+    const list: any[] = Array.isArray(data.recommendations)
       ? data.recommendations
+      : Array.isArray(data.recommended_outfits)
+      ? data.recommended_outfits
+      : Array.isArray(data.data)
+      ? data.data
       : [];
 
+    console.log(
+      '[Rec] response keys:', Object.keys(data),
+      '| recommendations len:', Array.isArray(data.recommendations) ? data.recommendations.length : 'none',
+      '| recommended_outfits len:', Array.isArray(data.recommended_outfits) ? data.recommended_outfits.length : 'none',
+    );
+    console.log(
+      '[Rec] used list count:', list.length,
+      '| first image_url:', list[0]?.image_url,
+      '| has signature(?):', String(list[0]?.image_url || '').includes('X-Amz-Signature'),
+    );
     setOutfits(
       list.map((raw, index) => ({
         id: raw?.id ?? index,
         name: raw?.brand_name || raw?.main_category || 'Outfit',
         price: raw?.price ? `Rs. ${raw.price}` : '',
         brand: raw?.brand_name || '',
-        image: resolveImage(raw?.image_url, index),
+        image: resolveImage(raw?.image_url),
       })),
     );
   }, [category]);
@@ -154,7 +173,7 @@ const RecommendedProducts = () => {
       onPress={() => openTryOn(item)}
     >
       <View style={styles.cardImageWrap}>
-        <Image source={item.image} style={styles.cardImage} />
+        <GarmentImage source={item.image} style={styles.cardImage} />
         <View style={styles.tryOnBadge}>
           <Text style={styles.tryOnBadgeText}>Try On</Text>
         </View>
