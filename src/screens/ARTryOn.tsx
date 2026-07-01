@@ -4,14 +4,14 @@ import {
   useNavigation,
   useRoute,
 } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
+  Animated,
   Image,
   ImageSourcePropType,
+  PanResponder,
   PermissionsAndroid,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -24,12 +24,11 @@ import { fontFamily } from '../assets/Fonts';
 import images from '../assets/Images';
 import CustomButton from '../components/CustomButton';
 import CustomProfileImgModal from '../components/CustomProfileImage';
+import GarmentCutout from '../components/GarmentCutout';
 import TopHeader from '../components/Topheader';
-import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { useAppDispatch } from '../redux/hooks';
 import { addToCart } from '../redux/slice/cartSlice';
-import { BASE_URL, apiHelper } from '../services';
-import { ensureAuthToken } from '../services/auth';
-import { uploadFile } from '../services/upload';
+import { apiHelper } from '../services';
 import { height, width } from '../utilities';
 import { colors } from '../utilities/colors';
 import { fontSizes } from '../utilities/fontsizes';
@@ -44,19 +43,33 @@ type ARTryOnParams = {
   };
 };
 
-type BodyPhoto = { uri: string; base64: string; mime: string };
+// The stage (body-photo canvas) size the garment is fitted within.
+const STAGE_W = width * 0.9;
+const STAGE_H = height * 0.6;
 
-// Friendly messages for the backend's logical-failure error_type values.
-const FAILURE_MESSAGES: Record<string, string> = {
-  no_human_detected:
-    'Photo mein koi insaan nahi mila. Apna poora full-body photo lagayein.',
-  low_visibility:
-    'Body theek se nahi dikh rahi. Achhi roshni mein poora full-body photo lagayein.',
-  invalid_file: 'Image file invalid hai. Doosri photo try karein.',
-  product_not_found: 'Yeh product nahi mila. Doosra product try karein.',
-  dress_image_missing: 'Is product ki dress image available nahi.',
-  model_missing: 'Try-on model abhi available nahi hai.',
-  ar_unavailable: 'Try-on service abhi available nahi. Baad mein try karein.',
+// Resolve the garment's natural aspect ratio (height / width) for both
+// require() assets and remote {uri} sources, so it keeps its proportions.
+const useGarmentAspect = (source: ImageSourcePropType) => {
+  const [aspect, setAspect] = useState(1.4);
+  useEffect(() => {
+    let alive = true;
+    try {
+      if (typeof source === 'number') {
+        const meta = Image.resolveAssetSource(source);
+        if (meta?.width && meta?.height) setAspect(meta.height / meta.width);
+      } else if (source && typeof source === 'object' && 'uri' in source && source.uri) {
+        Image.getSize(
+          source.uri,
+          (w, h) => alive && w > 0 && setAspect(h / w),
+          () => {},
+        );
+      }
+    } catch {}
+    return () => {
+      alive = false;
+    };
+  }, [source]);
+  return aspect;
 };
 
 const ARTryOn = () => {
@@ -64,18 +77,52 @@ const ARTryOn = () => {
   const route = useRoute<RouteProp<ARTryOnParams, 'ARTryOn'>>();
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
-  const token = useAppSelector(state => state.role.userAuthToken);
 
   const productId = route.params?.productId;
   const title = route.params?.title ?? 'Try-On';
   const price = route.params?.price ?? '';
   const dressImage = route.params?.dressImage ?? images.product1;
 
+  // Background-removed (transparent) version of the product image, so it looks
+  // worn on the body instead of a white box. Falls back to the original.
+  const [cutoutUri, setCutoutUri] = useState<string | null>(null);
+  const garmentSource: ImageSourcePropType = cutoutUri ? { uri: cutoutUri } : dressImage;
+
+  const aspect = useGarmentAspect(garmentSource);
+
   const [modalOpen, setModalOpen] = useState(false);
-  const [bodyPhoto, setBodyPhoto] = useState<BodyPhoto | null>(null);
-  const [resultUri, setResultUri] = useState<string | null>(null);
-  const [processing, setProcessing] = useState(false);
+  const [bodyPhoto, setBodyPhoto] = useState<string | null>(null);
+  const [scale, setScale] = useState(1);
   const [adding, setAdding] = useState(false);
+
+  // Default garment size: ~78% of the stage height (fits the full body), width
+  // derived from its aspect ratio. Scale (1 = default) is user-adjustable.
+  const baseHeight = STAGE_H * 0.78;
+  const baseWidth = baseHeight / aspect;
+  const garmentH = baseHeight * scale;
+  const garmentW = baseWidth * scale;
+
+  // Draggable position of the garment over the body photo.
+  const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => pan.extractOffset(),
+      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
+        useNativeDriver: false,
+      }),
+      onPanResponderRelease: () => pan.flattenOffset(),
+    }),
+  ).current;
+
+  const grow = () => setScale(s => Math.min(2.5, s + 0.1));
+  const shrink = () => setScale(s => Math.max(0.4, s - 0.1));
+  const reset = () => {
+    pan.setOffset({ x: 0, y: 0 });
+    pan.setValue({ x: 0, y: 0 });
+    setScale(1);
+  };
 
   const toggleModal = () => setModalOpen(o => !o);
 
@@ -97,26 +144,16 @@ const ARTryOn = () => {
     }
   };
 
-  const onPicked = (image: { path: string; data?: string | null; mime?: string }) => {
-    if (!image?.data) return;
-    setResultUri(null); // new photo -> clear old result
-    setBodyPhoto({
-      uri: image.path,
-      base64: image.data,
-      mime: image.mime || 'image/jpeg',
-    });
+  const onPicked = (image: { path: string }) => {
+    if (!image?.path) return;
+    setBodyPhoto(image.path);
+    reset();
   };
 
   const openGallery = () => {
     setModalOpen(false);
     setTimeout(() => {
-      ImagePicker.openPicker({
-        width: 720,
-        height: 1280,
-        cropping: false,
-        mediaType: 'photo',
-        includeBase64: true,
-      })
+      ImagePicker.openPicker({ mediaType: 'photo', cropping: false })
         .then(onPicked)
         .catch(() => {});
     }, 400);
@@ -127,77 +164,10 @@ const ARTryOn = () => {
     setTimeout(async () => {
       const ok = await requestCameraPermission();
       if (!ok) return;
-      ImagePicker.openCamera({
-        width: 720,
-        height: 1280,
-        cropping: false,
-        mediaType: 'photo',
-        includeBase64: true,
-      })
+      ImagePicker.openCamera({ mediaType: 'photo', cropping: false })
         .then(onPicked)
         .catch(() => {});
     }, 400);
-  };
-
-  const handleTryOn = async () => {
-    if (processing) return;
-    if (productId == null) {
-      Toast.show({ type: 'error', text1: 'Product missing', text2: 'Product id nahi mila.' });
-      return;
-    }
-    if (!bodyPhoto?.base64) {
-      Toast.show({
-        type: 'error',
-        text1: 'Photo required',
-        text2: 'Pehle apna full-body photo lagayein.',
-      });
-      return;
-    }
-
-    setProcessing(true);
-    await ensureAuthToken();
-
-    // POST /tryon/capture?product_id=<id>  (multipart field "image_file")
-    const { data, error } = await uploadFile(
-      'tryon/capture',
-      {
-        name: 'image_file',
-        base64: bodyPhoto.base64,
-        mime: bodyPhoto.mime,
-        filename: 'body.jpg',
-      },
-      { product_id: productId },
-    );
-    setProcessing(false);
-
-    if (error) {
-      Toast.show({
-        type: 'error',
-        text1: 'Try-on failed',
-        text2: typeof error === 'string' ? error : 'Please try again.',
-      });
-      return;
-    }
-
-    // HTTP 200 even on logical failure — branch on the "status" field.
-    if (data?.status === 'success') {
-      const tid = data?.data?.id;
-      const path =
-        data?.data?.tryon_image_url || (tid != null ? `/tryon/result/${tid}` : null);
-      if (!path) {
-        Toast.show({ type: 'error', text1: 'Try-on failed', text2: 'Result image nahi mila.' });
-        return;
-      }
-      setResultUri(`${BASE_URL}${path}`);
-      Toast.show({ type: 'success', text1: 'Try-on ready' });
-    } else {
-      const type = data?.error_type || '';
-      Toast.show({
-        type: 'error',
-        text1: 'Try-on failed',
-        text2: FAILURE_MESSAGES[type] || data?.message || 'Could not render the try-on.',
-      });
-    }
   };
 
   const handleAddToCart = async () => {
@@ -230,69 +200,69 @@ const ARTryOn = () => {
     navigation.navigate('Cart');
   };
 
-  // Auth header so the protected /tryon/result/<id> image can load.
-  const resultSource = resultUri
-    ? { uri: resultUri, headers: token ? { Authorization: `Bearer ${token}` } : undefined }
-    : null;
-
   return (
     <View style={styles.container}>
       <TopHeader isBack text="Try-On" />
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.title} numberOfLines={1}>
-          {title}
-        </Text>
+      <Text style={styles.title} numberOfLines={1}>
+        {title}
+      </Text>
 
-        {/* Selected product (reference) */}
-        <View style={styles.refRow}>
-          <Image source={dressImage} style={styles.refImage} resizeMode="cover" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.refLabel}>Selected outfit</Text>
-            {!!price && <Text style={styles.refPrice}>{price}</Text>}
-          </View>
-        </View>
-
-        {/* Result OR body-photo preview */}
+      {/* Stage: body photo + draggable/resizable garment */}
+      <View style={styles.stageWrap}>
         <View style={styles.stage}>
-          {processing ? (
-            <View style={styles.center}>
-              <ActivityIndicator size="large" color={colors.lightbrown} />
-              <Text style={styles.muted}>Rendering try-on...</Text>
-            </View>
-          ) : resultSource ? (
-            <Image source={resultSource} style={styles.stageImage} resizeMode="contain" />
-          ) : bodyPhoto ? (
-            <Image source={{ uri: bodyPhoto.uri }} style={styles.stageImage} resizeMode="contain" />
+          {bodyPhoto ? (
+            <>
+              <Image source={{ uri: bodyPhoto }} style={styles.bodyImage} resizeMode="cover" />
+
+              <Animated.View
+                {...panResponder.panHandlers}
+                style={[
+                  styles.garmentWrap,
+                  {
+                    width: garmentW,
+                    height: garmentH,
+                    left: (STAGE_W - garmentW) / 2,
+                    top: STAGE_H * 0.08,
+                    transform: [{ translateX: pan.x }, { translateY: pan.y }],
+                  },
+                ]}
+              >
+                <Image source={garmentSource} style={styles.garment} resizeMode="contain" />
+              </Animated.View>
+
+              <View style={styles.hint}>
+                <Text style={styles.hintText}>Drag karein · + / − se resize · ⟳ reset</Text>
+              </View>
+
+              {/* Resize controls */}
+              <View style={styles.controls}>
+                <TouchableOpacity style={styles.ctrlBtn} onPress={shrink} activeOpacity={0.8}>
+                  <Text style={styles.ctrlText}>−</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.ctrlBtn} onPress={grow} activeOpacity={0.8}>
+                  <Text style={styles.ctrlText}>+</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.ctrlBtn} onPress={reset} activeOpacity={0.8}>
+                  <Text style={styles.ctrlResetText}>⟳</Text>
+                </TouchableOpacity>
+              </View>
+            </>
           ) : (
             <View style={styles.center}>
               <Text style={styles.muted}>
-                Apna full-body photo lagayein, phir "Try On" dabayein.
+                Apna full-body photo lagayein — dress body pe fit karke dikhegi.
               </Text>
             </View>
           )}
         </View>
+      </View>
 
-        <TouchableOpacity style={styles.pickBtn} onPress={toggleModal} activeOpacity={0.85}>
-          <Text style={styles.pickBtnText}>
-            {bodyPhoto ? 'Change full-body photo' : 'Upload full-body photo'}
-          </Text>
-        </TouchableOpacity>
-
-        <CustomButton
-          text={processing ? 'Processing...' : 'Try On'}
-          textColor={colors.white}
-          btnHeight={height * 0.065}
-          btnWidth={width * 0.9}
-          backgroundColor={colors.lightbrown}
-          borderRadius={20}
-          disabled={processing || !bodyPhoto}
-          onPress={handleTryOn}
-        />
-      </ScrollView>
+      <TouchableOpacity style={styles.pickBtn} onPress={toggleModal} activeOpacity={0.85}>
+        <Text style={styles.pickBtnText}>
+          {bodyPhoto ? 'Change full-body photo' : 'Upload full-body photo'}
+        </Text>
+      </TouchableOpacity>
 
       {/* Footer */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + height * 0.015 }]}>
@@ -302,7 +272,7 @@ const ARTryOn = () => {
           textColor={colors.white}
           btnHeight={height * 0.06}
           btnWidth={width * 0.5}
-          backgroundColor={colors.brown}
+          backgroundColor={colors.lightbrown}
           borderRadius={20}
           disabled={adding}
           onPress={handleAddToCart}
@@ -315,73 +285,94 @@ const ARTryOn = () => {
         gallery={openGallery}
         camera={openCamera}
       />
+
+      {/* Hidden: removes the product image's white background -> transparent PNG */}
+      {!cutoutUri && (
+        <GarmentCutout
+          source={dressImage}
+          onResult={setCutoutUri}
+          onError={msg => console.log('[GarmentCutout] skipped:', msg)}
+        />
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.lightGray },
-  scroll: {
-    paddingHorizontal: width * 0.05,
-    paddingTop: height * 0.01,
-    paddingBottom: height * 0.14,
-  },
   title: {
     fontFamily: fontFamily.UrbanistExtraBold,
     fontSize: fontSizes.lg2,
     color: colors.black,
-    marginBottom: height * 0.015,
+    paddingHorizontal: width * 0.05,
+    marginBottom: height * 0.01,
   },
-  refRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: width * 0.03,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: width * 0.03,
-    marginBottom: height * 0.02,
-  },
-  refImage: {
-    width: width * 0.2,
-    height: width * 0.2,
-    borderRadius: 12,
-    backgroundColor: '#ECECEC',
-  },
-  refLabel: {
-    fontFamily: fontFamily.UrbanistSemiBold,
-    fontSize: fontSizes.sm,
-    color: '#6B6B6B',
-  },
-  refPrice: {
-    fontFamily: fontFamily.UrbanistExtraBold,
-    fontSize: fontSizes.md,
-    color: colors.marhoon,
-    marginTop: 2,
-  },
+  stageWrap: { alignItems: 'center' },
   stage: {
-    height: height * 0.42,
+    width: STAGE_W,
+    height: STAGE_H,
     borderRadius: 18,
     backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
     overflow: 'hidden',
-    marginBottom: height * 0.02,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  stageImage: { width: '100%', height: '100%' },
-  center: { alignItems: 'center', paddingHorizontal: width * 0.08, gap: height * 0.012 },
+  bodyImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  garmentWrap: { position: 'absolute' },
+  garment: { width: '100%', height: '100%' },
+  center: { paddingHorizontal: width * 0.08 },
   muted: {
     fontFamily: fontFamily.UrbanistMedium,
     fontSize: fontSizes.sm,
     color: '#8A8A8A',
     textAlign: 'center',
   },
-  pickBtn: {
+  hint: {
+    position: 'absolute',
+    bottom: height * 0.012,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: width * 0.035,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  hintText: {
+    color: colors.white,
+    fontFamily: fontFamily.UrbanistMedium,
+    fontSize: fontSizes.sm2,
+  },
+  controls: {
+    position: 'absolute',
+    right: width * 0.03,
+    top: height * 0.02,
+    gap: height * 0.012,
+  },
+  ctrlBtn: {
+    width: width * 0.11,
+    height: width * 0.11,
+    borderRadius: width * 0.055,
+    backgroundColor: colors.lightbrown,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctrlText: {
+    color: colors.white,
+    fontFamily: fontFamily.UrbanistExtraBold,
+    fontSize: fontSizes.xl ?? 24,
+  },
+  ctrlResetText: {
+    color: colors.white,
+    fontFamily: fontFamily.UrbanistExtraBold,
+    fontSize: fontSizes.lg ?? 20,
+  },
+  pickBtn: {
+    alignSelf: 'center',
+    marginTop: height * 0.02,
     paddingVertical: height * 0.016,
+    paddingHorizontal: width * 0.1,
     borderRadius: 20,
     borderWidth: 1.5,
     borderColor: colors.lightbrown,
-    marginBottom: height * 0.015,
   },
   pickBtnText: {
     fontFamily: fontFamily.UrbanistBold,
